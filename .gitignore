@@ -1,0 +1,46 @@
+# Python virtual environments (anywhere)
+.venv/
+venv/
+ENV/
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment variables
+.env
+.env.local
+Speechably/backend/.env   # Exclude backend .env specifically
+
+# Logs
+*.log 
+
+# Output
+uploads/
+temp/
+
+# Node.js packages (ignore all node_modules folders recursively)
+node_modules/
+Speechably/frontend/node_modules/
+
+# Python packages in backend
+/backend/venv/
+/backend/.venv/
+/backend/ENV/
+/backend/__pycache__/
+/backend/dist/
+/backend/build/
+/backend/*.egg-info/
+/backend/logs/gemini_debug/
