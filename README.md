@@ -1,103 +1,291 @@
 # SpeechLabs
 
 **Creating confidence through user-driven feedback.**  
-Advanced speech analysis powered by AI - at no cost.  
+Advanced speech analysis powered by AI.  
 Perfect for public speaking, presentations, interviews, or confidence-building exercises.
 
 ---
 
 ## Overview
 
-**SpeechLabs** is an AI-powered speech analysis tool that evaluates videos of users speaking. It analyzes **speech emotion** and **delivery patterns**, then generates personalized feedback using Google Gemini AI and provides transcription through Deepgram's Speech-to-Text API. The goal: help users overcome social anxiety, improve delivery, and speak with confidence.
+**SpeechLabs** is a comprehensive AI-powered speech analysis platform that evaluates videos of users speaking. It analyzes **speech emotion**, **delivery patterns**, provides **real-time transcription**, generates **personalized AI feedback**, and offers **text-to-speech coaching**. The platform includes **user authentication**, **analysis history**, and **PDF report generation** for tracking progress over time.
 
 ---
 
 ## Key Features
 
-- 🎥 **Video Upload** – Users upload a video of themselves speaking
-- 🔊 **Speech Emotion Recognition** – Detects tone, mood, and speaking style using pre-trained models
-- 📊 **Speaking Rate Analysis** – Measures words per second and provides visual feedback
-- 🧠 **AI-Powered Feedback** – LLM-generated insights and tips to improve delivery using Google Gemini
-- 💬 **AI Speech Coach** – Interactive chatbot for personalized advice based on your speech patterns
-- 🔊 **Text-to-Speech Feedback** – Deepgram TTS reads coaching advice aloud
-- 📈 **Interactive Visualizations** – View detailed timelines of emotion patterns and speaking rate
+- **Video Upload & Processing** – Users upload videos of themselves speaking for analysis
+- **Speech Emotion Recognition** – Detects tone, mood, and speaking style using Hugging Face Wav2Vec2 models
+- **Speaking Rate Analysis** – Measures words per second (WPS) and provides visual feedback on pacing
+- **AI-Powered Feedback** – Gemini AI generates comprehensive insights and personalized coaching tips
+- **Interactive AI Speech Coach** – Chatbot for personalized advice based on analysis patterns
+- **Text-to-Speech Feedback** – Deepgram TTS reads coaching advice aloud with natural voice
+- **Interactive Visualizations** – Recharts-powered emotion timelines and speaking rate graphs
+- **Google OAuth Authentication** – Secure user login with Google accounts
+- **Analysis History & Dashboard** – SQLite database stores all analyses for progress tracking
+- **PDF Export** – Generate professional PDF reports of speech analyses
 
 ---
 
-## Tech Stack
+## Complete Tech Stack
 
-### Backend
-- **Flask** – REST API backend
-- **Python 3.8+** – Core logic
-- **Hugging Face Transformers** – Speech emotion recognition (Wav2Vec2)
-- **Deepgram API** – Speech-to-text transcription with Smart Formatting
-- **Deepgram TTS** – Text-to-speech for audio feedback
-- **Google Gemini API** – AI feedback generation
-- **FFmpeg** – Audio extraction and processing
+### **Backend Framework & Server**
+- **Flask 3.1.2** – Python web framework for REST API
+- **Gunicorn 23.0.0** – Production WSGI HTTP server
+- **Flask-CORS 6.0.2** – Cross-Origin Resource Sharing for frontend communication
+- **Python 3.8+** – Core programming language
 
-### Frontend
-- **React** – User interface
-- **React Router** – Client-side routing
-- **Recharts** – Data visualization
-- **CSS Modules** – Component styling
+### **AI & Machine Learning**
+- **Google Gemini API (gemini-2.0-flash-exp)** – Large language model for feedback generation and coaching
+- **Hugging Face Transformers 4.40.0+** – Speech emotion recognition pipeline
+- **Wav2Vec2** – Pre-trained model: `r-f/wav2vec-english-speech-emotion-recognition`
+- **PyTorch 2.5.0+** – Deep learning framework for model inference
+- **TorchAudio 2.5.0+** – Audio processing for PyTorch
+
+### **Speech Processing**
+- **Deepgram SDK 5.0.0+** – Cloud-based speech-to-text and text-to-speech API
+  - **Speech-to-Text (STT)**: Nova-2 model with Smart Formatting
+  - **Text-to-Speech (TTS)**: Aura-Asteria-EN model for natural voice synthesis
+- **FFmpeg** – Audio/video extraction and segmentation
+- **SoundFile 0.12.1+** – Audio file I/O operations
+
+### **Database & Authentication**
+- **SQLite** – Lightweight relational database for user data and analysis storage
+- **Flask-SQLAlchemy 3.1.1** – ORM for database operations
+- **Flask-Login 0.6.3** – User session management
+- **Authlib 1.3.0+** – OAuth 2.0 client library
+- **Google OAuth 2.0** – Secure authentication with Google accounts
+
+### **Data Processing & Analysis**
+- **NumPy 1.26.0+** – Numerical computing and array operations
+- **Pandas 2.2.0+** – Data manipulation and analysis
+- **Statistics (Python stdlib)** – Statistical calculations for speech metrics
+
+### **Document Generation**
+- **ReportLab 4.0.0+** – PDF generation for analysis reports
+- **Plotly 5.24.0+** – Visualization library (backend support)
+
+### **Configuration & Utilities**
+- **python-dotenv 1.0.1** – Environment variable management
+- **Werkzeug 3.1.3** – WSGI utility library
+
+### **Frontend Framework**
+- **React 18.2.0** – JavaScript library for building user interfaces
+- **React Router DOM 6.10.0** – Client-side routing and navigation
+- **Node.js 14+** – JavaScript runtime for development
+
+### **Frontend Visualization**
+- **Recharts 2.5.0** – Composable charting library for React
+  - Emotion timeline visualizations
+  - Speaking rate (WPS) charts
+  - Emotion distribution pie charts
+
+### **Frontend Styling**
+- **CSS3** – Modern styling with custom properties and animations
+- **CSS Modules** – Component-scoped styling
 
 ---
 
-## Getting Started
+## Detailed Architecture
+
+### Backend Services
+
+#### 1. **Audio Service** (`backend/services/audio_service.py`)
+- Video-to-audio extraction using FFmpeg
+- Audio segmentation for parallel processing
+- Duration calculation and timestamp management
+
+#### 2. **Deepgram Service** (`backend/services/deepgram_service.py`)
+- **Speech-to-Text**: Transcribes audio segments with timestamps
+- **Text-to-Speech**: Converts text feedback to natural-sounding audio
+- Smart formatting for punctuation and capitalization
+- Speaking rate metrics calculation
+
+#### 3. **Speech Analysis Service** (`backend/services/speech_analysis.py`)
+- Emotion recognition using Wav2Vec2 model
+- 10 emotion categories: angry, calm, sad, surprised, happy, neutral, anxious, disappointed, fearful, excited
+- Batch processing of audio segments
+
+#### 4. **Gemini Service** (`backend/services/gemini_service.py`)
+- Comprehensive speech analysis generation
+- Interactive coaching chat responses
+- JSON-formatted insights and recommendations
+- Fallback analysis for error handling
+
+#### 5. **Database Models** (`backend/models.py`)
+- **User Model**: Google OAuth user information
+- **Analysis Model**: Complete speech analysis records with metrics
+
+#### 6. **PDF Generator** (`backend/utils/pdf_generator.py`)
+- Professional PDF report generation
+- Formatted tables and charts
+- Analysis summary, strengths, improvements, tips
+
+#### 7. **Data Processor** (`backend/utils/data_processor.py`)
+- Audio duration detection
+- Emotion timeline formatting
+- Analysis results aggregation
+
+#### 8. **Visualization Helper** (`backend/utils/visualization.py`)
+- Emotion metrics calculation
+- WPS (words per second) data preparation
+- Chart data formatting for frontend
+
+### Frontend Components
+
+#### **Layout Components**
+- **Header** – Navigation and branding
+- **Footer** – Copyright and links
+- **Card** – Reusable container component
+- **Loading** – Loading state indicators
+- **TabPanel** – Tabbed interface for analysis views
+
+#### **Feature Components**
+- **VideoUploader** – Drag-and-drop video upload with validation
+- **EmotionTimeline** – Interactive emotion visualization chart
+- **TranscriptView** – Formatted transcript display with timestamps
+- **InsightPanel** – AI-generated analysis insights display
+- **CoachChat** – Interactive chatbot with audio playback
+- **FeatureList** – Landing page feature showcase
+
+#### **Pages**
+- **Home** – Landing page with features
+- **Analysis** – Complete analysis results dashboard
+- **NotFound** – 404 error page
+
+#### **Services**
+- **API Client** (`frontend/src/services/api.js`) – Centralized API communication
+
+---
+
+## API Endpoints
+
+### **Authentication**
+- `GET /api/login` – Initiate Google OAuth login
+- `GET /api/authorize` – Handle OAuth callback
+- `POST /api/logout` – Log out current user
+- `GET /api/user` – Get current user information
+
+### **Analysis**
+- `POST /api/upload` – Upload video and analyze (requires authentication)
+- `POST /api/chat` – Chat with AI coach (requires authentication)
+- `POST /api/generate-analysis-audio` – Generate TTS audio for analysis sections
+- `GET /api/dashboard` – Get user's analysis history (requires authentication)
+- `GET /api/analysis/<id>` – Get specific analysis details (requires authentication)
+- `GET /api/analysis/<id>/export-pdf` – Download PDF report (requires authentication)
+
+### **Health Check**
+- `GET /api/healthcheck` – Check API server and service status
+
+---
+
+## Environment Configuration
+
+### Required Environment Variables
+
+Create a `.env` file in the `backend` directory:
+
+```env
+# AI API Keys
+GEMINI_API_KEY=your_gemini_api_key_here
+DEEPGRAM_API_KEY=your_deepgram_api_key_here
+
+# Google OAuth (optional - for authentication features)
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+OAUTH_REDIRECT_URI=http://localhost:5000/api/authorize
+
+# Flask Configuration
+SECRET_KEY=your_secret_key_here
+FLASK_ENV=development
+FLASK_DEBUG=True
+
+# Database (optional - defaults to SQLite)
+DATABASE_URL=sqlite:///speech_analysis.db
+
+# Frontend URL (for OAuth redirects)
+FRONTEND_URL=http://localhost:3000
+
+# Audio Processing
+FFMPEG_PATH=ffmpeg  # Only if FFmpeg not in PATH
+```
+
+---
+
+## Installation & Setup
 
 ### Prerequisites
-- Python 3.8+
-- Node.js 14+
-- FFmpeg installed on your system
+- Python 3.8 or higher
+- Node.js 14 or higher
+- FFmpeg installed and in system PATH
 - Google Gemini API key
 - Deepgram API key
+- (Optional) Google OAuth credentials for authentication
 
-### Installation
+### Backend Setup
 
-1. **Clone the repository**
+1. **Navigate to backend directory**
    ```bash
-   git clone https://github.com/yourusername/speechlabs.git
-   cd speechlabs
+   cd speechlabs/backend
    ```
 
-2. **Set up the backend**
+2. **Create virtual environment**
    ```bash
-   cd backend
    python -m venv venv
    source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
+
+3. **Install dependencies**
+   ```bash
    pip install -r requirements.txt
    ```
 
-3. **Create a .env file in the backend directory**
-   ```env
-   GEMINI_API_KEY=your_gemini_api_key_here
-   DEEPGRAM_API_KEY=your_deepgram_api_key_here
-   FFMPEG_PATH=ffmpeg  # Only if FFmpeg is not in your PATH
+4. **Configure environment variables**
+   ```bash
+   cp .env.example .env
+   # Edit .env and add your API keys
    ```
 
-4. **Set up the frontend**
+5. **Initialize database** (automatic on first run)
+   ```bash
+   python app.py
+   ```
+
+### Frontend Setup
+
+1. **Navigate to frontend directory**
    ```bash
    cd ../frontend
+   ```
+
+2. **Install dependencies**
+   ```bash
    npm install
+   ```
+
+3. **Start development server**
+   ```bash
+   npm start
    ```
 
 ### Running the Application
 
-1. **Start the Flask backend**
+1. **Start backend** (Terminal 1)
    ```bash
    cd backend
    python app.py
    ```
-   The backend will run on `http://localhost:5000`
+   Backend runs on `http://localhost:5000`
 
-2. **Start the React frontend** (in a new terminal)
+2. **Start frontend** (Terminal 2)
    ```bash
    cd frontend
    npm start
    ```
-   The frontend will run on `http://localhost:3000`
+   Frontend runs on `http://localhost:3000`
 
-3. **Open your browser and go to http://localhost:3000**
+3. **Access application**
+   Open `http://localhost:3000` in your browser
 
 ---
 
@@ -105,231 +293,231 @@ Perfect for public speaking, presentations, interviews, or confidence-building e
 
 ```
 speechlabs/
-├── backend/                   # Flask backend
-│   ├── api/                   # API routes
+├── backend/                          # Flask Backend
+│   ├── api/                          # API routes
 │   │   ├── __init__.py
-│   │   └── routes.py          # Upload, chat, and health check endpoints
-│   ├── services/              # Core services
+│   │   └── routes.py                 # All API endpoints
+│   │
+│   ├── services/                     # Core business logic
 │   │   ├── __init__.py
-│   │   ├── audio_service.py   # Audio segmentation with FFmpeg
-│   │   ├── deepgram_service.py # Deepgram STT and TTS
-│   │   ├── gemini_service.py  # Gemini AI feedback generation
-│   │   └── speech_analysis.py # Emotion recognition
-│   ├── utils/                 # Utilities
+│   │   ├── audio_service.py          # FFmpeg audio processing
+│   │   ├── deepgram_service.py       # Deepgram STT/TTS integration
+│   │   ├── gemini_service.py         # Gemini AI integration
+│   │   └── speech_analysis.py        # Wav2Vec2 emotion recognition
+│   │
+│   ├── utils/                        # Utility functions
 │   │   ├── __init__.py
-│   │   ├── data_processor.py  # Data processing and formatting
-│   │   └── visualization.py   # Visualization data preparation
-│   ├── app.py                 # Main Flask application
-│   ├── requirements.txt       # Backend dependencies
-│   └── .env.example           # Environment variables template
+│   │   ├── data_processor.py         # Data processing & formatting
+│   │   ├── visualization.py          # Visualization data prep
+│   │   └── pdf_generator.py          # PDF report generation
+│   │
+│   ├── models.py                     # SQLAlchemy database models
+│   ├── app.py                        # Flask application factory
+│   ├── requirements.txt              # Python dependencies
+│   ├── .env.example                  # Environment template
+│   └── .env                          # Environment variables (create this)
 │
-├── frontend/                  # React frontend
-│   ├── public/                # Static files
+├── frontend/                         # React Frontend
+│   ├── public/                       # Static assets
 │   │   ├── index.html
 │   │   ├── manifest.json
 │   │   └── favicon.ico
-│   ├── src/                   # Source code
-│   │   ├── components/        # Reusable UI components
-│   │   │   ├── layout/        # Layout components
+│   │
+│   ├── src/                          # Source code
+│   │   ├── components/               # React components
+│   │   │   ├── layout/               # Layout components
 │   │   │   │   ├── Card.js
-│   │   │   │   ├── Footer.js
 │   │   │   │   ├── Header.js
+│   │   │   │   ├── Footer.js
 │   │   │   │   ├── Loading.js
 │   │   │   │   └── TabPanel.js
-│   │   │   ├── CoachChat.js   # AI coach chatbot
-│   │   │   ├── EmotionTimeline.js # Emotion visualization
-│   │   │   ├── FeatureList.js # Feature cards
-│   │   │   ├── InsightPanel.js # Analysis insights
-│   │   │   ├── TranscriptView.js # Transcript display
-│   │   │   └── VideoUploader.js # Video upload interface
-│   │   ├── pages/             # Application pages
-│   │   │   ├── Analysis.js    # Analysis results page
-│   │   │   ├── Home.js        # Landing page
-│   │   │   └── NotFound.js    # 404 page
-│   │   ├── services/          # API client
-│   │   │   └── api.js         # Backend API communication
-│   │   ├── styles/            # CSS files
-│   │   │   ├── components/
-│   │   │   ├── pages/
-│   │   │   └── App.css
-│   │   ├── App.js             # Main React component
-│   │   └── index.js           # Entry point
-│   └── package.json           # Frontend dependencies
+│   │   │   │
+│   │   │   ├── CoachChat.js          # AI coach chatbot
+│   │   │   ├── EmotionTimeline.js    # Emotion visualization
+│   │   │   ├── FeatureList.js        # Feature cards
+│   │   │   ├── InsightPanel.js       # Analysis insights
+│   │   │   ├── TranscriptView.js     # Transcript display
+│   │   │   └── VideoUploader.js      # Video upload interface
+│   │   │
+│   │   ├── pages/                    # Page components
+│   │   │   ├── Home.js               # Landing page
+│   │   │   ├── Analysis.js            # Analysis dashboard
+│   │   │   └── NotFound.js            # 404 page
+│   │   │
+│   │   ├── services/                 # API services
+│   │   │   └── api.js                # API client
+│   │   │
+│   │   ├── styles/                   # CSS stylesheets
+│   │   │   ├── App.css
+│   │   │   ├── components/           # Component styles
+│   │   │   └── pages/                # Page styles
+│   │   │
+│   │   ├── App.js                    # Root component
+│   │   └── index.js                  # Entry point
+│   │
+│   └── package.json                  # Node dependencies
 │
-├── README.md                  # Project documentation
-├── LICENSE                    # MIT License
-└── .gitignore                 # Git ignore file
+├── README.md                         # This file
+├── SETUP_GUIDE.md                    # Detailed setup instructions
+├── MIGRATION_GUIDE.md                # Migration documentation
+├── OAUTH_SETUP.md                    # OAuth setup guide
+└── PROJECT_STRUCTURE.md              # Project structure details
 ```
 
 ---
 
-## API Endpoints
+## Data Flow Architecture
 
-### POST /api/upload
-Upload a video file for speech analysis.
-
-**Request:**
-- `file`: Video file (multipart/form-data)
-
-**Response:**
-```json
-{
-  "success": true,
-  "video_id": "unique-id",
-  "emotion_segments": [...],
-  "transcription_data": [...],
-  "gemini_analysis": {...},
-  "emotion_metrics": {...},
-  "speech_clarity": {...},
-  "wps_data": [...],
-  "duration": 120.5
-}
-```
-
-### POST /api/chat
-Interact with the AI speech coach.
-
-**Request:**
-```json
-{
-  "message": "How can I speak slower?",
-  "emotion_segments": [...]
-}
-```
-
-**Response:**
-```json
-{
-  "response": "To speak slower, try...",
-  "audio_url": "data:audio/wav;base64,..."
-}
-```
-
-### GET /api/healthcheck
-Check API server health.
-
-**Response:**
-```json
-{
-  "status": "ok",
-  "services": {
-    "gemini": "available",
-    "deepgram": "available"
-  }
-}
-```
+1. **Video Upload**: User uploads video → Flask receives and saves file
+2. **Audio Extraction**: FFmpeg extracts audio from video
+3. **Segmentation**: Audio split into ~30-second segments for processing
+4. **Parallel Processing**:
+   - **Deepgram**: Transcribes each segment with timestamps
+   - **Wav2Vec2**: Analyzes emotion for each segment
+5. **Metrics Calculation**: WPS, clarity scores, emotion distributions
+6. **AI Analysis**: Gemini generates comprehensive feedback
+7. **Database Storage**: Save analysis to SQLite linked to user
+8. **Frontend Display**: React components visualize results
+9. **Interactive Features**:
+   - Chat with AI coach (Gemini responses)
+   - Audio playback (Deepgram TTS)
+   - PDF export (ReportLab generation)
 
 ---
 
-## Features in Detail
+## Speech Analysis Features
 
-### Speech Emotion Recognition
-Uses the `r-f/wav2vec-english-speech-emotion-recognition` model from Hugging Face to detect emotions in speech segments including: angry, calm, sad, surprised, happy, neutral, anxious, disappointed, fearful, and excited.
-
-### Deepgram Transcription
-Utilizes Deepgram's Nova-2 model with Smart Formatting to provide:
-- Accurate speech-to-text transcription
-- Automatic punctuation
-- Proper capitalization
-- Timestamp data for each segment
+### Emotion Recognition
+- **10 Emotion Categories**: angry, calm, sad, surprised, happy, neutral, anxious, disappointed, fearful, excited
+- **Model**: Wav2Vec2 from Hugging Face
+- **Accuracy**: Pre-trained on speech emotion datasets
 
 ### Speaking Rate Analysis
-Calculates words per second (WPS) for each segment with:
-- Optimal range indicators (2.0-3.0 WPS)
-- Visual feedback (too fast, too slow, optimal)
-- Variation metrics for engagement analysis
+- **Optimal Range**: 2.0-3.0 words per second (WPS)
+- **Metrics**:
+  - Average WPS across all segments
+  - WPS variation (standard deviation)
+  - Fast segments identification (>3.0 WPS)
+  - Slow segments identification (<1.0 WPS)
 
-### Gemini AI Feedback
-Generates comprehensive feedback including:
-- Overall speech summary
-- Identified strengths
-- Areas for improvement
-- Personalized coaching tips
-- Practice exercises
+### Transcription Quality
+- **Deepgram Nova-2 Model**
+- **Smart Formatting**: Automatic punctuation and capitalization
+- **Timestamps**: Word-level and segment-level timing
+- **Languages**: Optimized for English
 
-### AI Speech Coach
-Interactive chatbot powered by Gemini that:
-- Answers specific questions about your speech
-- Provides personalized coaching advice
-- References your emotion patterns
-- Offers audio feedback via Deepgram TTS
-
----
-
-## Environment Variables
-
-Create a `.env` file in the `backend` directory:
-
-```env
-# Required API Keys
-GEMINI_API_KEY=your_gemini_api_key_here
-DEEPGRAM_API_KEY=your_deepgram_api_key_here
-
-# Optional Configuration
-FFMPEG_PATH=ffmpeg
-FLASK_ENV=development
-FLASK_DEBUG=True
-```
+### AI Feedback Components
+1. **Summary**: Overall speech performance assessment
+2. **Strengths**: Positive aspects identified
+3. **Improvement Areas**: Specific areas to work on
+4. **Coaching Tips**: Actionable recommendations
+5. **Practice Exercises**: Suggested activities
 
 ---
 
-## Contributing
+## Security & Privacy
 
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
----
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+- **Authentication**: Google OAuth 2.0 for secure login
+- **Session Management**: Flask-Login with secure cookies
+- **Data Isolation**: Users can only access their own analyses
+- **CORS Protection**: Configured for frontend domain only
+- **File Upload Limits**: 700MB maximum file size
+- **Input Validation**: All inputs sanitized and validated
 
 ---
 
-## Acknowledgments
+## Browser Compatibility
 
-- Special thanks to the open-source community for providing the tools and libraries that make this project possible
-- Deepgram for their excellent Speech-to-Text and Text-to-Speech APIs
-- Google for the Gemini AI API
-- Hugging Face for pre-trained speech emotion recognition models
-- Inspired by the need for accessible speech coaching tools for everyone
+- Chrome 90+
+- Firefox 88+
+- Safari 14+
+- Edge 90+
 
 ---
 
 ## Troubleshooting
 
-### FFmpeg not found
-Make sure FFmpeg is installed and in your system PATH:
-- **macOS**: `brew install ffmpeg`
-- **Ubuntu/Debian**: `sudo apt-get install ffmpeg`
-- **Windows**: Download from https://ffmpeg.org/ and add to PATH
+### FFmpeg Issues
+```bash
+# macOS
+brew install ffmpeg
 
-### API Key Issues
-- Ensure your API keys are properly set in the `.env` file
-- Check that the `.env` file is in the `backend` directory
-- Restart the Flask server after updating `.env`
+# Ubuntu/Debian
+sudo apt-get install ffmpeg
+
+# Windows
+# Download from https://ffmpeg.org/ and add to PATH
+```
+
+### API Key Errors
+- Verify keys are correctly set in `.env`
+- Ensure `.env` is in `backend/` directory
+- Restart Flask server after updating `.env`
 
 ### Module Import Errors
-- Make sure you've activated the virtual environment
-- Reinstall dependencies: `pip install -r requirements.txt`
-- Check Python version (3.8+ required)
+```bash
+# Ensure virtual environment is activated
+source venv/bin/activate  # or venv\Scripts\activate on Windows
+
+# Reinstall dependencies
+pip install -r requirements.txt
+```
+
+### Database Errors
+```bash
+# Delete and recreate database
+rm backend/speech_analysis.db
+python backend/app.py  # Automatically creates new database
+```
+
+### OAuth Issues
+- Verify Google OAuth credentials in `.env`
+- Check redirect URI matches Google Console configuration
+- Ensure cookies are enabled in browser
+
+---
+
+## Performance Optimization
+
+- **Audio Segmentation**: Parallel processing of segments
+- **Cloud APIs**: Deepgram for faster transcription vs local Whisper
+- **Caching**: Analysis results stored in database
+- **Lazy Loading**: Frontend components load progressively
 
 ---
 
 ## Future Enhancements
 
-- 📹 Real-time speech analysis during recording
-- 🎯 Custom coaching goals and progress tracking
-- 📱 Mobile app development
-- 🌍 Multi-language support
-- 📊 Advanced analytics dashboard
-- 👥 Peer comparison features
+- Real-time speech analysis during recording
+- Custom coaching goals and progress tracking
+- Mobile app (React Native)
+- Multi-language support
+- Advanced analytics dashboard with trends
+- Peer comparison and community features
+- Live practice mode with instant feedback
+- Gamification and achievements system
 
 ---
 
-For questions, issues, or feature requests, please open an issue on GitHub.
+## License & Copyright
+
+**© 2026 SpeechLabs. All Rights Reserved.**
+
+This software is proprietary and confidential. Unauthorized copying, distribution, modification, or use of this software, via any medium, is strictly prohibited without express written permission from the copyright holder.
+
+**Commercial use of this software or any derivatives is prohibited without a valid commercial license.**
+
+For licensing inquiries, contact the project owner.
+
+---
+
+## Acknowledgments
+
+- **Deepgram** – Excellent Speech-to-Text and Text-to-Speech APIs
+- **Google** – Gemini AI API for feedback generation
+- **Hugging Face** – Pre-trained Wav2Vec2 emotion recognition models
+- **Open Source Community** – For the amazing tools and libraries
+
+---
+
+**SpeechLabs** - Professional speech analysis and coaching platform.
