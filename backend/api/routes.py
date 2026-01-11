@@ -83,7 +83,11 @@ def login():
     if not google:
         return jsonify({'error': 'OAuth not configured'}), 500
     
-    redirect_uri = url_for('api.authorize', _external=True)
+    # Use explicit redirect URI from config if set, otherwise generate from url_for
+    redirect_uri = current_app.config.get('OAUTH_REDIRECT_URI')
+    if not redirect_uri:
+        redirect_uri = url_for('api.authorize', _external=True)
+    
     # Debug: Print the redirect URI being used
     print(f"OAuth redirect URI: {redirect_uri}", file=sys.stderr)
     return google.authorize_redirect(redirect_uri)

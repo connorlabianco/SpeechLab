@@ -50,6 +50,7 @@ def create_app():
     # Google OAuth Configuration
     app.config['GOOGLE_CLIENT_ID'] = os.environ.get('GOOGLE_CLIENT_ID', '')
     app.config['GOOGLE_CLIENT_SECRET'] = os.environ.get('GOOGLE_CLIENT_SECRET', '')
+    app.config['OAUTH_REDIRECT_URI'] = os.environ.get('OAUTH_REDIRECT_URI', None)
     
     # Ensure upload and temp directories exist
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
