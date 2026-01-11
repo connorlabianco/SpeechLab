@@ -51,9 +51,8 @@
   }
   
   .error-message .message-content {
-    background-color: #fee;
-    border-color: #fcc;
-    color: #c33;
+    background-color: rgba(239, 71, 111, 0.1);
+    border: 1px solid var(--danger-color);
   }
 
   .feedback-message .message-content {
@@ -61,8 +60,6 @@
     border-color: #4caf50;
     color: #2e7d32;
     font-weight: 500;
-    background-color: rgba(239, 71, 111, 0.1);
-    border: 1px solid var(--danger-color);
   }
   
   .user-avatar,

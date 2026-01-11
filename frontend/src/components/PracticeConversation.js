@@ -16,6 +16,8 @@ function PracticeConversation() {
   const nextPlayTimeRef = useRef(0);
   const conversationHistoryRef = useRef([]);
   const waitingForFeedbackRef = useRef(false);
+  const activeAudioSourcesRef = useRef([]);
+  const isAgentSpeakingRef = useRef(false);
   
   // Auto-scroll chat messages container
   useEffect(() => {
@@ -49,6 +51,22 @@ function PracticeConversation() {
     return endSignals.some(signal => lowerTranscript.includes(signal));
   };
 
+  const stopAllAudio = () => {
+    // Stop all active audio sources
+    activeAudioSourcesRef.current.forEach(source => {
+      try {
+        if (source && typeof source.stop === 'function') {
+          source.stop();
+        }
+      } catch (error) {
+        // Ignore errors when stopping sources
+      }
+    });
+    activeAudioSourcesRef.current = [];
+    // Reset playback timing
+    nextPlayTimeRef.current = audioContextRef.current ? audioContextRef.current.currentTime : 0;
+  };
+
   // VOICE MODE - Practice Conversation
   const startVoiceAgent = async () => {
     try {
@@ -72,6 +90,12 @@ function PracticeConversation() {
         
         // On user transcript
         (transcript) => {
+          // Stop all agent audio immediately if user is interrupting
+          if (isAgentSpeakingRef.current || activeAudioSourcesRef.current.length > 0) {
+            stopAllAudio();
+            isAgentSpeakingRef.current = false;
+          }
+          
           const userMessage = { role: 'user', content: transcript };
           setChatHistory(prev => [...prev, userMessage]);
           conversationHistoryRef.current.push({ role: 'user', content: transcript });
@@ -84,6 +108,7 @@ function PracticeConversation() {
         
         // On agent speaking (audio data)
         (audioData) => {
+          isAgentSpeakingRef.current = true;
           playAudioChunk(audioData);
         },
         
@@ -162,6 +187,9 @@ function PracticeConversation() {
   };
 
   const stopVoiceAgent = () => {
+    // Stop all audio first
+    stopAllAudio();
+    
     if (voiceAgentRef.current) {
       voiceAgentRef.current.stop();
       voiceAgentRef.current = null;
@@ -174,10 +202,12 @@ function PracticeConversation() {
     
     // Reset playback timing
     nextPlayTimeRef.current = 0;
+    isAgentSpeakingRef.current = false;
     
     setIsVoiceActive(false);
     setVoiceStatus('Ready');
     setConversationEnded(false);
+    waitingForFeedbackRef.current = false;
   };
 
   const playAudioChunk = (audioData) => {
@@ -224,6 +254,21 @@ function PracticeConversation() {
       source.buffer = audioBuffer;
       source.connect(audioContextRef.current.destination);
       source.start(startTime);
+      
+      // Track this source so we can stop it if interrupted
+      activeAudioSourcesRef.current.push(source);
+      
+      // Remove source when it finishes playing
+      source.onended = () => {
+        const index = activeAudioSourcesRef.current.indexOf(source);
+        if (index > -1) {
+          activeAudioSourcesRef.current.splice(index, 1);
+        }
+        // If no more sources, agent is done speaking
+        if (activeAudioSourcesRef.current.length === 0) {
+          isAgentSpeakingRef.current = false;
+        }
+      };
       
       // Update next play time to ensure no gaps
       nextPlayTimeRef.current = startTime + duration;
