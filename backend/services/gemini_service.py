@@ -3,6 +3,7 @@ import json
 import re
 import os
 import sys
+import statistics
 from typing import Dict, List, Tuple, Any, Optional
 from datetime import datetime
 
@@ -48,38 +49,92 @@ class GeminiService:
         try:
             # Get API key from parameter or environment variable
             API_KEY = api_key or os.environ.get("GEMINI_API_KEY")
+            
+            # Debug: Check if API key is loaded
             if not API_KEY:
-                print("GEMINI_API_KEY not found in environment variables or parameters", file=sys.stderr)
+                print("ERROR: GEMINI_API_KEY not found in environment variables or parameters", file=sys.stderr)
+                print(f"DEBUG: Checking environment - GEMINI_API_KEY in os.environ: {'GEMINI_API_KEY' in os.environ}", file=sys.stderr)
+                if 'GEMINI_API_KEY' in os.environ:
+                    key_value = os.environ.get("GEMINI_API_KEY")
+                    print(f"DEBUG: GEMINI_API_KEY value length: {len(key_value) if key_value else 0}", file=sys.stderr)
+                    print(f"DEBUG: GEMINI_API_KEY starts with: {key_value[:10] if key_value and len(key_value) > 10 else 'N/A'}...", file=sys.stderr)
                 return None
+            else:
+                print(f"DEBUG: GEMINI_API_KEY loaded successfully (length: {len(API_KEY)})", file=sys.stderr)
+                print(f"DEBUG: GEMINI_API_KEY starts with: {API_KEY[:10]}...", file=sys.stderr)
                 
             # Configure the API client
             genai.configure(api_key=API_KEY)
             
-            # Set up the model
+            # Set up the model - NO TOKEN LIMITS
+            # Set max_output_tokens to maximum allowed (64,000 for gemini-3-flash)
             generation_config = {
                 "temperature": 0.7,
                 "top_p": 0.95,
                 "top_k": 40,
+                "max_output_tokens": 64000,  # Maximum allowed - NO LIMITS
             }
             
+            # Disable all safety filters for speech analysis
+            # BLOCK_NONE allows all content through for analysis purposes
             safety_settings = [
-                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
             ]
             
-            # Create the model
-            model = genai.GenerativeModel(
-                model_name="gemini-2.5-flash",
-                generation_config=generation_config,
-                safety_settings=safety_settings
-            )
+            # Create the model - use correct model name
+            # Try gemini-3-flash-preview first (correct name), fallback to gemini-1.5-flash if needed
+            model = None
+            model_names_to_try = [
+                "gemini-3-flash-preview",  # Correct name for Gemini 3 Flash
+                "gemini-1.5-flash",  # Fallback if preview not available
+                "gemini-pro"  # Final fallback
+            ]
             
-            # Test the model with a simple call
-            test_response = model.generate_content("Hello")
-            if not test_response:
-                raise Exception("Model did not return a response for test call")
+            last_error = None
+            for model_name in model_names_to_try:
+                try:
+                    print(f"Attempting to initialize model: {model_name}", file=sys.stderr)
+                    model = genai.GenerativeModel(
+                        model_name=model_name,
+                        generation_config=generation_config,
+                        safety_settings=safety_settings
+                    )
+                    print(f"Successfully created model: {model_name}", file=sys.stderr)
+                    break
+                except Exception as model_error:
+                    print(f"Failed to create model {model_name}: {str(model_error)}", file=sys.stderr)
+                    last_error = model_error
+                    continue
+            
+            if model is None:
+                raise Exception(f"Failed to initialize any Gemini model. Last error: {str(last_error)}")
+            
+            # Test the model with a simple call to verify it's actually working
+            try:
+                print("Testing Gemini model with a simple API call...", file=sys.stderr)
+                test_response = model.generate_content("Hello")
+                if not test_response:
+                    raise Exception("Model did not return a response for test call")
+                if not hasattr(test_response, 'text'):
+                    raise Exception("Model response is missing text attribute")
+                if not test_response.text:
+                    raise Exception("Model response text is empty")
+                print(f"Gemini model test successful. Response: {test_response.text[:50]}...", file=sys.stderr)
+            except Exception as test_error:
+                error_msg = str(test_error)
+                print(f"Gemini model test call failed: {error_msg}", file=sys.stderr)
+                # Check for specific error types
+                if "API key" in error_msg or "403" in error_msg or "401" in error_msg:
+                    raise Exception(f"API key authentication failed: {error_msg}. Check that your GEMINI_API_KEY is valid and the Generative Language API is enabled.")
+                elif "404" in error_msg or "not found" in error_msg.lower():
+                    raise Exception(f"Model not found: {error_msg}. The model name may be incorrect or not available in your region.")
+                elif "quota" in error_msg.lower() or "billing" in error_msg.lower():
+                    raise Exception(f"Quota or billing issue: {error_msg}. Check your Google Cloud billing and quotas.")
+                else:
+                    raise Exception(f"Model initialization test failed: {error_msg}")
                 
             return model
         except Exception as e:
@@ -142,64 +197,33 @@ class GeminiService:
             if transcription_data[i]["emotion"] != transcription_data[i-1]["emotion"]:
                 emotion_transitions += 1
         
-        # Determine if metrics are in optimal ranges
-        avg_wps_status = "optimal" if 2.0 <= avg_wps <= 3.0 else ("too slow" if avg_wps < 2.0 else "too fast")
-        variation_status = "optimal" if 0.3 <= wps_variation <= 0.7 else ("too low" if wps_variation < 0.3 else "too high")
-        
         # Build the prompt
         prompt = f"""You are a professional speech coach analyzing speech transcript data. The following is a timeline of speech segments with transcriptions, speaking rate (words per second), and detected emotions:
 
 {chr(10).join(block for block in timeline_blocks)}
 
-SPEECH METRICS ANALYSIS:
-- Average speaking rate: {avg_wps:.2f} WPS (optimal is 2.0-3.0 WPS) - CURRENT STATUS: {avg_wps_status.upper()}
-- Rate variation (standard deviation): {wps_variation:.2f} WPS (optimal is 0.3-0.7 WPS) - CURRENT STATUS: {variation_status.upper()}
-  * Too low (< 0.3) = monotone speech, lacks dynamism
-  * Optimal (0.3-0.7) = natural, engaging variation
-  * Too high (> 0.7) = inconsistent pacing, hard to follow
-- Number of emotion transitions: {emotion_transitions}
-- Specific segments to improve:
-  {chr(10).join(f'  {issue}' for issue in issues) if issues else '  None identified'}
+Based on this data, provide constructive feedback on:
 
-CRITICAL GUIDELINES FOR ANALYSIS:
-
-STRENGTHS - Only list genuine strengths that are actually good:
-- DO list: Speaking rate in optimal range (2.0-3.0 WPS), variation in optimal range (0.3-0.7 WPS), appropriate emotional expression matching content, good emotional variety, clear articulation, effective use of pauses
-- DO NOT list: Speaking rate outside optimal range, variation outside optimal range (0.3-0.7), "clear transcription" (this is baseline, not a strength), metrics that need improvement
-
-IMPROVEMENT AREAS - List specific areas that need work:
-- Speaking rate too slow (< 2.0 WPS) or too fast (> 3.0 WPS)
-- Variation too low (< 0.3 WPS = monotone) or too high (> 0.7 WPS = inconsistent)
-- Emotional expression not matching content
-- Lack of emotional variety
-- Poor enunciation or clarity issues
-- Lack of strategic pausing
-
-Based on this data, provide constructive feedback:
-
-1. Speaking Rate Analysis:
-   - Current rate is {avg_wps_status} ({avg_wps:.2f} WPS)
-   - Current variation is {variation_status} ({wps_variation:.2f} WPS standard deviation)
-   - Provide specific guidance based on these metrics
+1. Speaking Rate:
+   - Average speaking rate: {avg_wps:.2f} WPS (optimal is 2.0-3.0 WPS)
+   - Rate variation: {wps_variation:.2f} WPS (higher variation can indicate better engagement)
+   - Specific segments to improve:
+     {chr(10).join(f'     {issue}' for issue in issues) if issues else '     None identified'}
 
 2. Emotional Expression:
+   - Number of emotion transitions: {emotion_transitions}
    - Evaluate whether the emotions match the content of each segment
-   - Assess emotional variety and transitions
-   - Suggest where emotional alignment could improve engagement
+   - Suggest where emotional variety could improve engagement
 
 3. Clarity and Enunciation:
-   - Identify any unclear or nonsensical phrases that suggest poor enunciation
-   - Note: If words are spoken too fast, too quietly, or pronounced incorrectly, they may be unclear in transcription
+   - Identify any unclear or nonsensical phrases that suggest poor enunciation. (If words are spoken too fast, or too quietly, or pronounced incorrectly, they may be unclear on the transcription. Please assume that the user's speech is written correctly, and that the transcription looking incorrect is due to the user speaking too fast, or too quietly, or pronounced incorrectly. This is mostly fixed by enunciating more clearly and slowing down.)
    - Suggest specific techniques to improve clarity
 
 4. Overall Presentation:
    - Provide 3-5 specific action items to improve this speech
    - Suggest a practice exercise tailored to this speaker's needs
 
-IMPORTANT: 
-- Respond ONLY with valid JSON. Do not include any explanatory text, markdown formatting, or code blocks.
-- Only list genuine strengths - do not include metrics that are outside optimal ranges as strengths.
-- Be honest and constructive - if something needs improvement, list it in improvement_areas, not strengths.
+IMPORTANT: Respond ONLY with valid JSON. Do not include any explanatory text, markdown formatting, or code blocks. Return ONLY the JSON object itself.
 
 Your response must be EXACTLY in this JSON structure:
 {{
@@ -327,6 +351,8 @@ Your response must be EXACTLY in this JSON structure:
         # If all strategies fail, use fallback
         error_msg = "Failed to parse JSON from Gemini response after trying all strategies."
         print(error_msg, file=sys.stderr)
+        print(f"Response text (first 500 chars): {response_text[:500]}", file=sys.stderr)
+        print(f"Response text length: {len(response_text)}", file=sys.stderr)
         self._save_debug_log(response_text, prompt, success=False, error_msg=error_msg)
         return self.generate_fallback_analysis(emotion_segments)
 
@@ -392,8 +418,18 @@ Your response must be EXACTLY in this JSON structure:
             prompt = self.generate_simple_prompt(emotion_segments)
         
         try:
+            # Verify model is still available before making the call
+            if self.model is None:
+                raise Exception("Gemini model is None - cannot generate content")
+            if not hasattr(self.model, 'generate_content'):
+                raise Exception("Gemini model missing generate_content method")
+            
             # Get response from Gemini
             response = self.model.generate_content(prompt)
+            if not response:
+                raise Exception("Gemini returned None response")
+            if not hasattr(response, 'text'):
+                raise Exception("Gemini response missing text attribute")
             response_text = response.text
 
             # Extract JSON data from response

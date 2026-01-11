@@ -18,18 +18,39 @@ from utils.visualization import VisualizationHelper
 api_bp = Blueprint('api', __name__)
 
 # Get API keys from environment
+# Note: .env should already be loaded by app.py, but reload if needed
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
 DEEPGRAM_API_KEY = os.environ.get('DEEPGRAM_API_KEY')
 
 if not GEMINI_API_KEY:
-    print("WARNING: GEMINI_API_KEY not found in environment variables", file=sys.stderr)
-    load_dotenv()
+    print("WARNING: GEMINI_API_KEY not found in environment variables, attempting to reload .env", file=sys.stderr)
+    # Try loading from backend/.env specifically
+    backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    env_path = os.path.join(backend_dir, '.env')
+    if os.path.exists(env_path):
+        load_dotenv(env_path)
+        print(f"Loaded .env from: {env_path}", file=sys.stderr)
+    else:
+        load_dotenv()  # Try current directory
     GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
+    if GEMINI_API_KEY:
+        print("GEMINI_API_KEY loaded after reload", file=sys.stderr)
+    else:
+        print("ERROR: GEMINI_API_KEY still not found after reload", file=sys.stderr)
 
 if not DEEPGRAM_API_KEY:
-    print("WARNING: DEEPGRAM_API_KEY not found in environment variables", file=sys.stderr)
-    load_dotenv()
+    print("WARNING: DEEPGRAM_API_KEY not found in environment variables, attempting to reload .env", file=sys.stderr)
+    backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    env_path = os.path.join(backend_dir, '.env')
+    if os.path.exists(env_path):
+        load_dotenv(env_path)
+    else:
+        load_dotenv()
     DEEPGRAM_API_KEY = os.environ.get('DEEPGRAM_API_KEY')
+    if DEEPGRAM_API_KEY:
+        print("DEEPGRAM_API_KEY loaded after reload", file=sys.stderr)
+    else:
+        print("ERROR: DEEPGRAM_API_KEY still not found after reload", file=sys.stderr)
 
 # Initialize services
 speech_analyzer = SpeechAnalyzer()
@@ -310,14 +331,36 @@ def generate_analysis_audio():
 @api_bp.route('/healthcheck', methods=['GET'])
 def healthcheck():
     """Simple health check endpoint"""
-    # Check service status
-    gemini_status = "available" if gemini_service.model is not None else "unavailable"
+    # Check service status with detailed diagnostics
+    gemini_status = "unavailable"
+    gemini_details = {}
+    
+    if gemini_service.model is not None:
+        gemini_status = "available"
+        gemini_details['model_exists'] = True
+        gemini_details['has_generate_content'] = hasattr(gemini_service.model, 'generate_content')
+        
+        # Try a quick test call to verify it actually works
+        try:
+            test_response = gemini_service.model.generate_content("Test")
+            gemini_details['test_call_success'] = True
+            gemini_details['test_response_has_text'] = hasattr(test_response, 'text') if test_response else False
+        except Exception as e:
+            gemini_status = "error"
+            gemini_details['test_call_error'] = str(e)
+    else:
+        gemini_details['model_exists'] = False
+        gemini_details['reason'] = "Model is None - check initialization logs"
+    
     deepgram_status = "available" if deepgram_service.client is not None else "unavailable"
     
     return jsonify({
         'status': 'ok',
         'services': {
-            'gemini': gemini_status,
+            'gemini': {
+                'status': gemini_status,
+                'details': gemini_details
+            },
             'deepgram': deepgram_status
         }
     }), 200
