@@ -23,6 +23,7 @@ function CoachChat({ emotionSegments, analysisData }) {
   const audioQueueRef = useRef([]);
   const isPlayingRef = useRef(false);
   const nextPlayTimeRef = useRef(0);
+  const currentAudioRef = useRef(null);
   
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -36,6 +37,11 @@ function CoachChat({ emotionSegments, analysisData }) {
       }
       if (audioContextRef.current) {
         audioContextRef.current.close();
+      }
+      // Stop any playing audio
+      if (currentAudioRef.current) {
+        currentAudioRef.current.pause();
+        currentAudioRef.current = null;
       }
     };
   }, []);
@@ -62,9 +68,30 @@ function CoachChat({ emotionSegments, analysisData }) {
       setChatHistory(prev => [...prev, aiMessage]);
       
       if (audioResponseEnabled && response.audio_url) {
+        // Stop any currently playing audio
+        if (currentAudioRef.current) {
+          currentAudioRef.current.pause();
+          currentAudioRef.current.currentTime = 0;
+          currentAudioRef.current = null;
+        }
+        
         // Play audio automatically without showing controls
         const audio = new Audio(response.audio_url);
-        audio.play().catch(err => console.error('Audio playback failed:', err));
+        currentAudioRef.current = audio;
+        
+        // Clean up when audio finishes
+        audio.onended = () => {
+          currentAudioRef.current = null;
+        };
+        
+        audio.onerror = () => {
+          currentAudioRef.current = null;
+        };
+        
+        audio.play().catch(err => {
+          console.error('Audio playback failed:', err);
+          currentAudioRef.current = null;
+        });
         // Don't set audioUrl state to avoid showing playback bar
       } else {
         // Clear any previous audio URL
@@ -231,6 +258,14 @@ function CoachChat({ emotionSegments, analysisData }) {
     if (isVoiceActive) {
       stopVoiceAgent();
     }
+    
+    // Stop any playing audio
+    if (currentAudioRef.current) {
+      currentAudioRef.current.pause();
+      currentAudioRef.current.currentTime = 0;
+      currentAudioRef.current = null;
+    }
+    
     setChatHistory([
       { role: 'ai', content: "👋 I'm your AI speech coach. Choose text or voice mode to get started!" }
     ]);
@@ -241,6 +276,13 @@ function CoachChat({ emotionSegments, analysisData }) {
   const handleModeChange = (voiceMode) => {
     if (isVoiceActive) {
       stopVoiceAgent();
+    }
+    
+    // Stop any playing audio when switching modes
+    if (currentAudioRef.current) {
+      currentAudioRef.current.pause();
+      currentAudioRef.current.currentTime = 0;
+      currentAudioRef.current = null;
     }
     
     // Clear chat when switching modes
@@ -358,7 +400,17 @@ function CoachChat({ emotionSegments, analysisData }) {
                 <button
                   type="button"
                   className={`audio-toggle-button ${audioResponseEnabled ? 'active' : ''}`}
-                  onClick={() => setAudioResponseEnabled(!audioResponseEnabled)}
+                  onClick={() => {
+                    const newValue = !audioResponseEnabled;
+                    setAudioResponseEnabled(newValue);
+                    
+                    // Stop current audio playback if disabling
+                    if (!newValue && currentAudioRef.current) {
+                      currentAudioRef.current.pause();
+                      currentAudioRef.current.currentTime = 0;
+                      currentAudioRef.current = null;
+                    }
+                  }}
                   title={audioResponseEnabled ? 'Disable audio responses' : 'Enable audio responses'}
                 >
                   {audioResponseEnabled ? '🔊' : '🔇'} Audio
