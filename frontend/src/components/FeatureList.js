@@ -14,7 +14,7 @@ function FeatureList() {
     },
     {
       title: 'Speaking Rate Analysis',
-      description: 'Measures your words-per-second rate with optimal range indicators (2.0-3.0 WPS) and variation analysis.'
+      description: 'Measures your words-per-second rate with optimal range indicators.'
     },
     {
       title: 'AI-Powered Feedback',
@@ -30,7 +30,7 @@ function FeatureList() {
     },
     {
       title: 'Interactive Visualizations',
-      description: 'View detailed timelines of your emotion patterns and speaking rate with interactive charts.'
+      description: 'View detailed timelines of speaking rate with interactive charts.'
     }
   ];
 
