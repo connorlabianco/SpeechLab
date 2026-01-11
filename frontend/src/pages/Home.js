@@ -29,6 +29,10 @@ function Home({ onAnalysisComplete }) {
     console.error("Upload error:", error);
   };
 
+  const handlePracticeConversationClick = () => {
+    navigate('/practice');
+  };
+
   return (
     <div className="home-page">
       <div className="home-container">
@@ -55,7 +59,10 @@ function Home({ onAnalysisComplete }) {
             <span>OR</span>
           </div>
           
-          <button className="conversation-practice-btn">
+          <button 
+            className="conversation-practice-btn"
+            onClick={handlePracticeConversationClick}
+          >
             Conversation Practice
           </button>
         </section>

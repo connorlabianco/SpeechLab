@@ -8,6 +8,7 @@ import HomeLanding from './pages/HomeLanding';
 import Dashboard from './pages/Dashboard';
 import Analysis from './pages/Analysis';
 import History from './pages/History';
+import Practice from './pages/Practice';
 import Login from './pages/Login';
 import NotFound from './pages/NotFound';
 import './styles/App.css';
@@ -55,6 +56,14 @@ function AppContent() {
             element={
               <ProtectedRoute>
                 <History />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/practice" 
+            element={
+              <ProtectedRoute>
+                <Practice />
               </ProtectedRoute>
             } 
           />

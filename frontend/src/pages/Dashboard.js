@@ -69,6 +69,10 @@ function Dashboard() {
     fileInputRef.current?.click();
   };
 
+  const handlePracticeConversationClick = () => {
+    navigate('/practice');
+  };
+
   // Calculate today's analyses count
   const today = new Date().toDateString();
   const todayAnalyses = analyses.filter(analysis => {
@@ -127,7 +131,10 @@ function Dashboard() {
                   <span>OR</span>
                 </div>
 
-                <button className="btn-primary practice-button">
+                <button 
+                  className="btn-primary practice-button"
+                  onClick={handlePracticeConversationClick}
+                >
                   Practice Conversation
                 </button>
               </>
