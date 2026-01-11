@@ -13,13 +13,19 @@ export class VoiceAgentService {
     this.isActive = false;
     this.conversationHistory = [];
     this.conversationStartTime = null;
+    this.isAnalyzing = false; // Flag to pause audio during analysis
+    this.analysisComplete = false; // Track if analysis is done and feedback given
+    this.lastAnalysisResult = null; // Store the last analysis result for save function
   }
 
-  async start(analysisData, onTranscript, onAgentSpeaking, onAgentText, onError, mode = 'coach') {
+  async start(analysisData, onTranscript, onAgentSpeaking, onAgentText, onError, mode = 'coach', onAnalysisComplete = null, onSaveComplete = null) {
     try {
       // Reset conversation tracking
       this.conversationHistory = [];
       this.conversationStartTime = Date.now();
+      this.lastAnalysisResult = null; // Reset stored analysis
+      this.onAnalysisComplete = onAnalysisComplete; // Store callback
+      this.onSaveComplete = onSaveComplete; // Store save completion callback
       
       // Create system prompt based on mode
       const systemPrompt = mode === 'practice' 
@@ -78,7 +84,7 @@ export class VoiceAgentService {
                   thinkConfig.functions = [
                   {
                     name: 'analyze_conversation_practice',
-                    description: 'Analyze the practice conversation to generate insights about conversational skills, filler words, topic flow, and improvement areas. Call this when the user asks for feedback or signals the conversation should end.',
+                    description: 'Analyze the practice conversation to generate detailed insights about conversational skills, filler words, topic flow, and improvement areas. Call this AFTER you have provided your verbal feedback to the user when they signal the conversation should end.',
                     parameters: {
                       type: 'object',
                       properties: {
@@ -226,6 +232,22 @@ export class VoiceAgentService {
               if (onAgentText) {
                 onAgentText(content);
               }
+              
+              // Track when agent provides feedback (before function calls)
+              // This helps us know when to expect function calls
+              if (mode === 'practice' && !this.isAnalyzing) {
+                // Check if this response contains feedback indicators (long response before analysis)
+                const feedbackKeywords = ['conversation', 'speaking', 'pace', 'clarity', 'improve', 'strength', 'filler', 'flow', 'engagement', 'feedback', 'observed', 'noticed'];
+                const lowerText = content.toLowerCase();
+                const isFeedback = feedbackKeywords.some(keyword => lowerText.includes(keyword)) || content.length > 100;
+
+                if (isFeedback) {
+                  console.log('Agent provided feedback - expecting function calls next');
+                  // Don't set isAnalyzing yet - that happens when analyze function is called
+                  // Just mark that feedback was given
+                  this.analysisComplete = false; // Reset - we're waiting for analysis now
+                }
+              }
             }
           }
         }
@@ -286,6 +308,14 @@ export class VoiceAgentService {
       this.connection.on(AgentEvents.Close, () => {
         console.log('Voice agent disconnected');
         this.isActive = false;
+        this.isAnalyzing = false;
+        this.analysisComplete = false;
+        // Notify the component that connection closed
+        if (onError && this.analysisComplete) {
+          // If analysis completed, this is a normal end, not an error
+          // We could add an onEnd callback, but for now we'll just log
+          console.log('Conversation ended normally after analysis');
+        }
       });
 
       // Handle function call requests from agent (only in practice mode)
@@ -329,6 +359,17 @@ export class VoiceAgentService {
               if (function_name === 'analyze_conversation_practice') {
                 console.log('Analyzing conversation...');
                 
+                // Pause audio input during analysis - stop media stream tracks
+                this.isAnalyzing = true;
+                if (this.mediaStream) {
+                  this.mediaStream.getTracks().forEach(track => {
+                    if (track && track.enabled) {
+                      track.enabled = false; // Disable tracks instead of stopping
+                      console.log('Audio input paused for analysis');
+                    }
+                  });
+                }
+                
                 // Use conversation transcript from parameters if provided, otherwise use our tracked history
                 const transcript = parameters.conversation_transcript || this.conversationHistory;
                 // Calculate duration if not provided
@@ -349,21 +390,72 @@ export class VoiceAgentService {
                 });
                 
                 if (!response.ok) {
+                  // Re-enable audio on error
+                  this.isAnalyzing = false;
+                  if (this.mediaStream) {
+                    this.mediaStream.getTracks().forEach(track => {
+                      if (track) track.enabled = true;
+                    });
+                  }
                   throw new Error(`Analysis failed: ${response.statusText}`);
                 }
                 
                 const data = await response.json();
-                result = JSON.stringify(data.analysis);  // Must be string
+                const analysis = data.analysis;
+                result = JSON.stringify(analysis);  // Must be string
                 console.log('Analysis complete:', result);
+                
+                // Store analysis result for save function
+                this.lastAnalysisResult = analysis;
+                
+                // Notify component that analysis is complete (this will auto-save)
+                if (this.onAnalysisComplete && typeof this.onAnalysisComplete === 'function') {
+                  this.onAnalysisComplete(analysis);
+                }
+                
+                // Keep audio paused - agent will call save function next
+                // Audio will be re-enabled after save completes and conversation ends
               }
               else if (function_name === 'save_conversation_to_history') {
                 console.log('Saving to history...');
+                console.log('Save parameters:', parameters);
+                
+                // Get analysis from parameters or use the stored result from analyze function
+                let analysis = parameters.analysis;
+                
+                // If analysis is not provided, use the stored result from analyze_conversation_practice
+                if (!analysis && this.lastAnalysisResult) {
+                  console.log('Analysis not in parameters, using stored result from analyze function');
+                  analysis = this.lastAnalysisResult;
+                }
+                
+                // Parse analysis if it's a string (from previous function call)
+                if (typeof analysis === 'string') {
+                  try {
+                    analysis = JSON.parse(analysis);
+                  } catch (e) {
+                    console.error('Failed to parse analysis string:', e);
+                    throw new Error('Invalid analysis format');
+                  }
+                }
+                
+                if (!analysis || typeof analysis !== 'object') {
+                  throw new Error('Analysis is required and must be an object. Make sure analyze_conversation_practice was called first.');
+                }
                 
                 // Use conversation transcript from parameters if provided, otherwise use our tracked history
                 const transcript = parameters.conversation_transcript || this.conversationHistory;
                 // Calculate duration if not provided
                 const duration = parameters.duration_seconds || 
                   (this.conversationStartTime ? Math.floor((Date.now() - this.conversationStartTime) / 1000) : 0);
+                
+                const savePayload = {
+                  analysis: analysis,
+                  conversation_transcript: transcript,
+                  duration_seconds: duration
+                };
+                
+                console.log('Sending save payload:', JSON.stringify(savePayload, null, 2));
                 
                 // Call backend to save
                 const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/save-practice-history`, {
@@ -372,37 +464,98 @@ export class VoiceAgentService {
                   headers: {
                     'Content-Type': 'application/json'
                   },
-                  body: JSON.stringify({
-                    analysis: parameters.analysis,
-                    conversation_transcript: transcript,
-                    duration_seconds: duration
-                  })
+                  body: JSON.stringify(savePayload)
                 });
                 
                 if (!response.ok) {
-                  throw new Error(`Save failed: ${response.statusText}`);
+                  const errorText = await response.text();
+                  console.error('Save error response:', errorText);
+                  throw new Error(`Save failed: ${response.statusText} - ${errorText}`);
                 }
                 
                 const data = await response.json();
+                console.log('Save response data:', data);
+                
+                // Extract session_id from response (could be in different formats)
+                const sessionId = data.session_id || data.id || data.practice_session_id;
+                
+                if (!sessionId) {
+                  console.error('No session_id in save response:', data);
+                  throw new Error('Save succeeded but no session_id returned');
+                }
+                
                 result = JSON.stringify({
                   success: true,
-                  session_id: data.session_id,
-                  message: data.message
+                  session_id: sessionId,
+                  message: data.message || 'Session saved successfully'
                 });  // Must be string
                 console.log('Saved successfully:', result);
+                console.log('Session ID for navigation:', sessionId);
+                
+                // Store session_id for navigation - notify component via callback if available
+                this.savedSessionId = sessionId;
+                if (this.onSaveComplete && typeof this.onSaveComplete === 'function') {
+                  console.log('Calling onSaveComplete callback with sessionId:', sessionId);
+                  try {
+                    this.onSaveComplete(sessionId);
+                  } catch (callbackError) {
+                    console.error('Error in onSaveComplete callback:', callbackError);
+                  }
+                } else {
+                  console.warn('onSaveComplete callback not available or not a function');
+                }
+                
+                // After saving, end the conversation
+                this.isAnalyzing = false;
+                this.analysisComplete = true;
+                
+                // Re-enable audio tracks (though we're ending anyway)
+                if (this.mediaStream) {
+                  this.mediaStream.getTracks().forEach(track => {
+                    if (track) track.enabled = true;
+                  });
+                }
+                
+                // Don't auto-end - let the navigation happen first
+                // The component will handle stopping the agent after navigation
+                console.log('Save function completed successfully, waiting for navigation');
               } else {
                 console.warn(`Unknown function: ${function_name}`);
                 result = JSON.stringify({ error: `Unknown function: ${function_name}` });
               }
               
               // Send FunctionCallResponse back to agent
-              if (this.connection && typeof this.connection.send === 'function' && result) {
-                this.connection.send(JSON.stringify({
-                  type: 'FunctionCallResponse',
-                  function_call_id: function_call_id,
-                  output: result  // output field, not result!
-                }));
-                console.log(`Function response sent for ${function_name}`);
+              // The SDK expects the response as a plain object, not stringified
+              if (this.connection && result) {
+                try {
+                  const responsePayload = {
+                    type: 'FunctionCallResponse',
+                    id: function_call_id,
+                    name: function_name,
+                    content: result
+                  };
+                  
+                  console.log('Sending function response payload:', JSON.stringify(responsePayload, null, 2));
+                  console.log('Connection type:', typeof this.connection);
+                  console.log('Available connection methods:', Object.keys(this.connection || {}).filter(k => typeof this.connection[k] === 'function'));
+                  
+                  // Try using the SDK's functionCallResponse method if available
+                  if (typeof this.connection.functionCallResponse === 'function') {
+                    console.log('Using functionCallResponse method');
+                    this.connection.functionCallResponse(responsePayload);
+                  } else if (typeof this.connection.send === 'function') {
+                    // Try sending as stringified JSON (like other messages)
+                    console.log('Using send method with stringified JSON');
+                    this.connection.send(JSON.stringify(responsePayload));
+                  } else {
+                    console.error('No method available to send function response');
+                    console.error('Connection object:', this.connection);
+                  }
+                  console.log(`Function response sent for ${function_name}`);
+                } catch (sendError) {
+                  console.error('Error sending function response:', sendError);
+                  console.error('Send error details:', sendError.stack);
+                }
               }
             } // end for loop
             
@@ -416,11 +569,20 @@ export class VoiceAgentService {
               const function_call_id = func?.id || message?.id;
               if (function_call_id) {
                 try {
-                  this.connection.send(JSON.stringify({
+                  const errorResponse = {
                     type: 'FunctionCallResponse',
-                    function_call_id: function_call_id,
-                    output: JSON.stringify({ error: error.message || 'Function execution failed' })
-                  }));
+                    id: function_call_id,
+                    name: func?.name || 'unknown',
+                    content: JSON.stringify({ error: error.message || 'Function execution failed' })
+                  };
+                  
+                  console.log('Sending error response:', errorResponse);
+                  
+                  if (typeof this.connection.functionCallResponse === 'function') {
+                    this.connection.functionCallResponse(errorResponse);
+                  } else if (typeof this.connection.send === 'function') {
+                    this.connection.send(JSON.stringify(errorResponse));
+                  }
                 } catch (sendError) {
                   console.error('Failed to send error response:', sendError);
                 }
@@ -481,6 +643,12 @@ export class VoiceAgentService {
       // Handle audio data from the worklet
       let audioChunkCount = 0;
       this.audioProcessor.port.onmessage = (event) => {
+        // Pause audio input during analysis - stop sending audio chunks completely
+        if (this.isAnalyzing) {
+          // Don't send any audio during analysis - this prevents CLIENT_MESSAGE_TIMEOUT errors
+          return;
+        }
+        
         if (!this.isActive || !this.connection) {
           if (audioChunkCount % 100 === 0) { // Log every 100 chunks to avoid spam
             console.log('Skipping audio - not active or no connection');
@@ -768,13 +936,17 @@ You are a conversational practice partner helping someone improve their conversa
 - When they indicate they want to end (by saying things like "that's all", "I'm done", "let's end", "finish", "stop", "end conversation", "wrap up", etc.), provide comprehensive, honest, critical feedback
 
 # Using Functions (CRITICAL)
-You have access to functions that help analyze and save conversations. You MUST use these functions:
-- When the user indicates they want to end (says "that's all", "I'm done", "let's end", etc.), IMMEDIATELY call the analyze_conversation_practice function to analyze the full conversation
-- After receiving the analysis results, call save_conversation_to_history to save the session for their progress tracking
-- These functions provide you with detailed insights about their performance that you can then share with them
+You have access to functions that help analyze and save conversations. You MUST use these functions in the correct order:
+- When the user indicates they want to end (says "that's all", "I'm done", "let's end", etc.), FIRST provide your HONEST, THOROUGH, and CONSTRUCTIVE feedback to the user - speak your feedback response based on what you observed during the conversation
+- AFTER you have spoken your feedback response, then call analyze_conversation_practice to get detailed analysis data
+- AFTER receiving the analysis results, call save_conversation_to_history to save the session
+- The conversation will automatically end after saving, so make sure your feedback is complete before calling the functions
 
 # When Conversation Ends
-When the user indicates they want to end the conversation, FIRST call analyze_conversation_practice to get detailed analysis, THEN provide HONEST, THOROUGH, and CONSTRUCTIVE feedback based on that analysis. This is critical for their improvement.
+When the user indicates they want to end the conversation:
+1. FIRST: Provide your feedback response to the user (speak it out loud) - give honest, thorough feedback based on what you observed
+2. THEN: Call analyze_conversation_practice to get detailed analysis data
+3. THEN: Call save_conversation_to_history to save the session
 
 Your feedback MUST include:
 1. Honest Assessment: Be direct about how they actually performed. Don't sugarcoat or be overly optimistic. If they struggled, say so clearly.

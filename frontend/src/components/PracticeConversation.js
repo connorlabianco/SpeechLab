@@ -1,13 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { VoiceAgentService } from '../services/voiceAgent';
 import Card from './layout/Card';
 import '../styles/components/CoachChat.css';
 
 function PracticeConversation() {
+  const navigate = useNavigate();
   const [chatHistory, setChatHistory] = useState([]);
   const [isVoiceActive, setIsVoiceActive] = useState(false);
   const [voiceStatus, setVoiceStatus] = useState('Ready');
   const [conversationEnded, setConversationEnded] = useState(false);
+  const [analysisData, setAnalysisData] = useState(null); // Store analysis results
   
   const chatEndRef = useRef(null);
   const chatMessagesRef = useRef(null);
@@ -15,6 +18,7 @@ function PracticeConversation() {
   const audioContextRef = useRef(null);
   const nextPlayTimeRef = useRef(0);
   const conversationHistoryRef = useRef([]);
+  const conversationStartTimeRef = useRef(null);
   const waitingForFeedbackRef = useRef(false);
   const activeAudioSourcesRef = useRef([]);
   const isAgentSpeakingRef = useRef(false);
@@ -73,6 +77,7 @@ function PracticeConversation() {
       setVoiceStatus('Connecting...');
       setConversationEnded(false);
       conversationHistoryRef.current = [];
+      conversationStartTimeRef.current = Date.now();
       
       // Create audio context for playback
       audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)({
@@ -118,24 +123,17 @@ function PracticeConversation() {
           setChatHistory(prev => [...prev, aiMessage]);
           conversationHistoryRef.current.push({ role: 'assistant', content: agentText });
           
-          // If we're waiting for feedback and this looks like feedback, stop after a delay
+          // If we're waiting for feedback and this looks like feedback, update status
           if (waitingForFeedbackRef.current) {
             // Check if this response contains feedback indicators
-            const feedbackKeywords = ['feedback', 'conversation', 'speaking', 'pace', 'clarity', 'awareness', 'improve', 'strength'];
+            const feedbackKeywords = ['conversation', 'speaking', 'pace', 'clarity', 'improve', 'strength', 'filler', 'flow', 'engagement'];
             const lowerText = agentText.toLowerCase();
-            const isFeedback = feedbackKeywords.some(keyword => lowerText.includes(keyword));
+            const isFeedback = feedbackKeywords.some(keyword => lowerText.includes(keyword)) || agentText.length > 100;
             
-            if (isFeedback || agentText.length > 100) {
-              // This is likely the feedback response, stop after it finishes
-              setTimeout(() => {
-                if (voiceAgentRef.current) {
-                  voiceAgentRef.current.stop();
-                  voiceAgentRef.current = null;
-                }
-                setIsVoiceActive(false);
-                setVoiceStatus('Conversation ended - feedback provided above');
-                waitingForFeedbackRef.current = false;
-              }, 8000); // Wait 8 seconds for audio to finish
+            if (isFeedback && !analysisData) {
+              // This is the initial feedback response (before analysis function is called)
+              setVoiceStatus('Feedback provided - analyzing conversation...');
+              console.log('Feedback received - waiting for analysis function to be called');
             }
           }
         },
@@ -143,16 +141,98 @@ function PracticeConversation() {
         // On error
         (error) => {
           console.error('Voice agent error:', error);
-          setVoiceStatus('Error - please restart');
-          const errorMessage = {
-            role: 'ai',
-            content: 'Voice connection error. Please try again.',
-            isError: true
-          };
-          setChatHistory(prev => [...prev, errorMessage]);
+          // Don't show error if conversation ended normally
+          if (!waitingForFeedbackRef.current || !conversationEnded) {
+            setVoiceStatus('Error - please restart');
+            const errorMessage = {
+              role: 'ai',
+              content: 'Voice connection error. Please try again.',
+              isError: true
+            };
+            setChatHistory(prev => [...prev, errorMessage]);
+          } else {
+            // Normal end after feedback
+            setIsVoiceActive(false);
+            setVoiceStatus('Conversation ended - feedback provided above');
+            waitingForFeedbackRef.current = false;
+          }
         },
         
-        'practice' // Mode: practice conversation
+        'practice', // Mode: practice conversation
+        
+        // On analysis complete - store analysis data and set up fallback save
+        async (analysis) => {
+          console.log('Analysis data received:', analysis);
+          setAnalysisData(analysis);
+          
+          // Store analysis in a ref for the fallback
+          const analysisForFallback = analysis;
+          
+          // Fallback: If agent doesn't call save function within 8 seconds, save manually
+          setTimeout(async () => {
+            // Check if we still have analysis data and agent is still active (meaning save wasn't called)
+            if (analysisForFallback && isVoiceActive && voiceAgentRef.current) {
+              console.log('Fallback: Manually saving analysis to history (agent did not call save function)');
+              try {
+                const duration = conversationStartTimeRef.current 
+                  ? Math.floor((Date.now() - conversationStartTimeRef.current) / 1000) 
+                  : 0;
+                
+                const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/save-practice-history`, {
+                  method: 'POST',
+                  credentials: 'include',
+                  headers: {
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify({
+                    analysis: analysisForFallback,
+                    conversation_transcript: conversationHistoryRef.current,
+                    duration_seconds: duration
+                  })
+                });
+                
+                if (response.ok) {
+                  const data = await response.json();
+                  console.log('Analysis saved successfully (fallback):', data);
+                  if (data.session_id) {
+                    stopVoiceAgent();
+                    navigate(`/practice-analysis/${data.session_id}`);
+                  }
+                } else {
+                  const errorText = await response.text();
+                  console.error('Save failed (fallback):', errorText);
+                }
+              } catch (err) {
+                console.error('Failed to save analysis (fallback):', err);
+              }
+            }
+          }, 8000); // 8 second delay to give agent time to call save function
+        },
+        
+        // On save complete - navigate to analysis page
+        (sessionId) => {
+          console.log('Save complete callback received, sessionId:', sessionId);
+          if (!sessionId) {
+            console.error('No sessionId provided to onSaveComplete callback');
+            setVoiceStatus('Error: No session ID received');
+            return;
+          }
+          setVoiceStatus('Analysis saved - redirecting...');
+          console.log('Navigating to practice-analysis page with sessionId:', sessionId);
+          
+          // Stop the agent before navigating
+          if (voiceAgentRef.current) {
+            stopVoiceAgent();
+          }
+          
+          // Navigate immediately
+          try {
+            navigate(`/practice-analysis/${sessionId}`);
+          } catch (navError) {
+            console.error('Navigation error:', navError);
+            setVoiceStatus('Error navigating to analysis page');
+          }
+        }
       );
       
       setIsVoiceActive(true);
@@ -169,21 +249,24 @@ function PracticeConversation() {
     if (conversationEnded) return; // Prevent multiple triggers
     
     setConversationEnded(true);
-    setVoiceStatus('Ending conversation - waiting for feedback...');
+    setVoiceStatus('Analyzing conversation and preparing feedback...');
     waitingForFeedbackRef.current = true;
     
-    // The agent will automatically provide feedback based on the prompt
-    // We'll wait for the agent's response (handled in onAgentText callback)
-    // If no response comes within 15 seconds, stop anyway
+    // The agent will:
+    // 1. Call analyze_conversation_practice (audio input paused during this)
+    // 2. Provide feedback response
+    // 3. Call save_conversation_to_history
+    // 4. Auto-end conversation
+    
+    // Safety timeout in case something goes wrong
     setTimeout(() => {
-      if (waitingForFeedbackRef.current && voiceAgentRef.current) {
-        voiceAgentRef.current.stop();
-        voiceAgentRef.current = null;
-        setIsVoiceActive(false);
+      if (waitingForFeedbackRef.current && voiceAgentRef.current && isVoiceActive) {
+        console.log('Safety timeout - ending conversation');
+        stopVoiceAgent();
         setVoiceStatus('Conversation ended');
         waitingForFeedbackRef.current = false;
       }
-    }, 15000); // Safety timeout
+    }, 30000); // 30 second safety timeout
   };
 
   const stopVoiceAgent = () => {
@@ -205,10 +288,26 @@ function PracticeConversation() {
     isAgentSpeakingRef.current = false;
     
     setIsVoiceActive(false);
-    setVoiceStatus('Ready');
+    
+    // Update status based on whether feedback was provided
+    if (waitingForFeedbackRef.current && conversationEnded) {
+      setVoiceStatus('Conversation ended - feedback provided above');
+    } else {
+      setVoiceStatus('Ready');
+    }
+    
     setConversationEnded(false);
     waitingForFeedbackRef.current = false;
   };
+
+  // Stop agent when navigating away (if still active)
+  useEffect(() => {
+    return () => {
+      if (isVoiceActive && voiceAgentRef.current) {
+        stopVoiceAgent();
+      }
+    };
+  }, [isVoiceActive]);
 
   const playAudioChunk = (audioData) => {
     if (!audioContextRef.current) return;
@@ -287,6 +386,7 @@ function PracticeConversation() {
     conversationHistoryRef.current = [];
     setConversationEnded(false);
     waitingForFeedbackRef.current = false;
+    setAnalysisData(null); // Clear analysis data
   };
 
   return (
@@ -354,6 +454,7 @@ function PracticeConversation() {
             )}
           </div>
         </div>
+        
       </div>
     </Card>
   );

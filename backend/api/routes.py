@@ -730,6 +730,28 @@ def get_practice_history():
             'error': 'Failed to retrieve practice history'
         }), 500
 
+@api_bp.route('/practice-session/<int:session_id>', methods=['GET'])
+@login_required
+def get_practice_session(session_id):
+    """Get a specific practice session by ID"""
+    try:
+        session = PracticeSession.query.get_or_404(session_id)
+        
+        # Check if user owns this session
+        if session.user_id != current_user.id:
+            return jsonify({'error': 'Unauthorized'}), 403
+        
+        return jsonify({
+            'success': True,
+            'session': session.to_dict()
+        }), 200
+    except Exception as e:
+        print(f"Error in get_practice_session: {str(e)}", file=sys.stderr)
+        return jsonify({
+            'success': False,
+            'error': 'Failed to retrieve practice session'
+        }), 500
+
 @api_bp.route('/healthcheck', methods=['GET'])
 def healthcheck():
     """Simple health check endpoint"""

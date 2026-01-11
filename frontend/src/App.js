@@ -7,6 +7,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import HomeLanding from './pages/HomeLanding';
 import Dashboard from './pages/Dashboard';
 import Analysis from './pages/Analysis';
+import PracticeAnalysis from './pages/PracticeAnalysis';
 import History from './pages/History';
 import Practice from './pages/Practice';
 import Login from './pages/Login';
@@ -64,6 +65,14 @@ function AppContent() {
             element={
               <ProtectedRoute>
                 <Practice />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/practice-analysis/:id" 
+            element={
+              <ProtectedRoute>
+                <PracticeAnalysis />
               </ProtectedRoute>
             } 
           />

@@ -200,6 +200,29 @@ export const getPracticeSessions = async () => {
 };
 
 /**
+ * Get a specific practice session by ID
+ */
+export const getPracticeSessionById = async (sessionId) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/practice-session/${sessionId}`, {
+      method: 'GET',
+      credentials: 'include'
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to fetch practice session');
+    }
+    
+    const data = await response.json();
+    return data.session;
+  } catch (error) {
+    console.error('Error fetching practice session:', error);
+    throw error;
+  }
+};
+
+/**
  * Check API server health
  */
 export const checkApiHealth = async () => {
