@@ -341,6 +341,66 @@ def chat_with_coach():
         traceback.print_exc(file=sys.stderr)
         return jsonify({'error': str(e)}), 500
 
+@api_bp.route('/chat-voice', methods=['POST'])
+@login_required
+def chat_with_coach_voice():
+    """Handle voice chat - transcribe audio, get Gemini response, return TTS audio"""
+    try:
+        if 'audio' not in request.files:
+            return jsonify({'error': 'No audio file provided'}), 400
+        
+        audio_file = request.files['audio']
+        emotion_segments = json.loads(request.form.get('emotion_segments', '[]'))
+        
+        # Save to temp file
+        temp_audio_path = os.path.join(tempfile.gettempdir(), f"voice_{uuid.uuid4().hex}.webm")
+        audio_file.save(temp_audio_path)
+        
+        print(f"Saved audio to: {temp_audio_path}, size: {os.path.getsize(temp_audio_path)} bytes", file=sys.stderr)
+        
+        try:
+            # Use the new transcription method
+            transcription_result = deepgram_service.transcribe_audio_file(temp_audio_path)
+            
+            if not transcription_result.get('success'):
+                error = transcription_result.get('error', 'Unknown error')
+                print(f"Transcription failed: {error}", file=sys.stderr)
+                return jsonify({'error': f'Transcription failed: {error}'}), 500
+            
+            user_text = transcription_result.get('transcript', '').strip()
+            
+            if not user_text:
+                return jsonify({'error': 'No speech detected in audio'}), 400
+            
+            print(f"User said: '{user_text}'", file=sys.stderr)
+            
+            # Get Gemini response
+            emotion_context = "\n".join([f"{seg.get('time_range', '')}: {seg.get('emotion', '')}" 
+                                        for seg in emotion_segments])
+            coach_response = gemini_service.generate_chat_response(user_text, emotion_context)
+            
+            print(f"Coach response: '{coach_response[:100]}...'", file=sys.stderr)
+            
+            # Generate TTS
+            audio_url = deepgram_service.text_to_speech(coach_response)
+            
+            return jsonify({
+                'user_text': user_text,
+                'response': coach_response,
+                'audio_url': audio_url,
+                'success': True
+            }), 200
+            
+        finally:
+            # Clean up temp file
+            if os.path.exists(temp_audio_path):
+                os.remove(temp_audio_path)
+    
+    except Exception as e:
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        return jsonify({'error': str(e)}), 500
+
 @api_bp.route('/generate-analysis-audio', methods=['POST'])
 @login_required
 def generate_analysis_audio():
@@ -537,6 +597,14 @@ def export_pdf(analysis_id):
         import traceback
         traceback.print_exc(file=sys.stderr)
         return jsonify({'error': f'Failed to generate PDF: {str(e)}'}), 500
+
+@api_bp.route('/deepgram-key', methods=['GET'])
+@login_required
+def get_deepgram_key():
+    """Get Deepgram API key for frontend WebSocket connection"""
+    if not DEEPGRAM_API_KEY:
+        return jsonify({'error': 'Deepgram API key not configured'}), 500
+    return jsonify({'api_key': DEEPGRAM_API_KEY}), 200
 
 @api_bp.route('/healthcheck', methods=['GET'])
 def healthcheck():

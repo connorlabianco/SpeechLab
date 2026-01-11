@@ -316,6 +316,67 @@ class DeepgramService:
                     pass
             raise Exception(error_msg) from e
     
+    def transcribe_audio_file(self, audio_file_path: str) -> Dict[str, Any]:
+        """
+        Transcribe an audio file using Deepgram's prerecorded API.
+        Optimized for voice chat - returns transcript quickly.
+        
+        Args:
+            audio_file_path: Path to the audio file
+            
+        Returns:
+            Dictionary containing transcript and metadata
+        """
+        if not self.client:
+            print("Deepgram client not initialized. Cannot transcribe audio.")
+            return {'transcript': '', 'error': 'Client not initialized'}
+        
+        try:
+            # Read audio file as bytes
+            with open(audio_file_path, 'rb') as audio_file:
+                audio_data = audio_file.read()
+            
+            # Configure options for voice chat
+            options = {
+                'model': 'nova-2',
+                'smart_format': True,
+                'punctuate': True,
+                'language': 'en'
+            }
+            
+            # Call Deepgram prerecorded API
+            print(f"Transcribing audio file: {audio_file_path}", file=sys.stderr)
+            
+            response = self.client.listen.prerecorded.v('1').transcribe_file(
+                {'buffer': audio_data},
+                options
+            )
+            
+            # Extract transcript from response
+            transcript = ''
+            if response.results and response.results.channels:
+                channel = response.results.channels[0]
+                if channel.alternatives:
+                    transcript = channel.alternatives[0].transcript
+            
+            print(f"Transcription successful. Text: '{transcript}'", file=sys.stderr)
+            
+            return {
+                'transcript': transcript,
+                'success': True
+            }
+            
+        except Exception as e:
+            error_msg = f"Deepgram transcription error: {str(e)}"
+            print(error_msg, file=sys.stderr)
+            import traceback
+            traceback.print_exc(file=sys.stderr)
+            return {
+                'transcript': '',
+                'error': error_msg,
+                'success': False
+            }
+    
     def get_speech_metrics(self, transcription_data: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
         Calculate speech metrics based on transcription data.

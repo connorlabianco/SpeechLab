@@ -16,6 +16,30 @@
       rel="stylesheet"
     />
     <title>SpeechLabs | Speech Analysis</title>
+    <script>
+      // Polyfill Buffer for browser (required by Deepgram SDK)
+      if (typeof global === 'undefined') {
+        var global = window;
+      }
+      if (typeof Buffer === 'undefined') {
+        // Use a simple Buffer polyfill
+        global.Buffer = {
+          from: function(data, encoding) {
+            if (typeof data === 'string') {
+              const bytes = new Uint8Array(data.length);
+              for (let i = 0; i < data.length; i++) {
+                bytes[i] = data.charCodeAt(i);
+              }
+              return bytes;
+            }
+            return new Uint8Array(data);
+          },
+          isBuffer: function(obj) {
+            return obj instanceof Uint8Array || obj instanceof ArrayBuffer;
+          }
+        };
+      }
+    </script>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>

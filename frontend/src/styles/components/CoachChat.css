@@ -216,3 +216,148 @@
     background-color: var(--light-gray);
     color: var(--text-color);
   }
+
+/* Transcript preview during recording */
+.transcript-preview {
+  padding: 0.75rem 1rem;
+  background-color: var(--light-gray);
+  border-radius: var(--border-radius);
+  margin-bottom: 0.5rem;
+}
+
+.transcript-text {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-color);
+  font-style: italic;
+}
+
+/* Voice mode controls */
+.mode-toggle {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  justify-content: center;
+}
+
+.mode-button {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--medium-gray);
+  background-color: white;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  transition: var(--transition);
+  font-size: 0.9rem;
+}
+
+.mode-button.active {
+  background-color: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
+
+.mode-button:hover {
+  background-color: var(--primary-light);
+}
+
+.mode-button.active:hover {
+  background-color: var(--secondary-color);
+}
+
+.voice-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem;
+}
+
+.voice-record-button {
+  padding: 1.5rem 3rem;
+  font-size: 1.1rem;
+  border-radius: 50px;
+  border: 2px solid var(--primary-color);
+  background-color: white;
+  color: var(--primary-color);
+  cursor: pointer;
+  transition: var(--transition);
+  font-weight: 600;
+}
+
+.voice-record-button:hover:not(:disabled) {
+  background-color: var(--primary-light);
+  transform: scale(1.05);
+}
+
+.voice-record-button.recording {
+  background-color: var(--danger-color);
+  color: white;
+  border-color: var(--danger-color);
+  animation: pulse 1.5s infinite;
+}
+
+.voice-record-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.voice-hint {
+  font-size: 0.9rem;
+  color: var(--text-light);
+  margin: 0;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* Voice Agent Controls */
+.voice-status {
+  text-align: center;
+  margin-bottom: 1rem;
+  font-size: 0.95rem;
+  color: var(--text-light);
+}
+
+.voice-status .active {
+  color: var(--success-color);
+  font-weight: 600;
+}
+
+.voice-start-button,
+.voice-stop-button {
+  width: 100%;
+  padding: 1.25rem 2rem;
+  font-size: 1.1rem;
+  border-radius: var(--border-radius);
+  border: none;
+  cursor: pointer;
+  transition: var(--transition);
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.voice-start-button {
+  background-color: var(--success-color);
+  color: white;
+}
+
+.voice-start-button:hover {
+  background-color: #05c090;
+  transform: translateY(-2px);
+}
+
+.voice-stop-button {
+  background-color: var(--danger-color);
+  color: white;
+}
+
+.voice-stop-button:hover {
+  background-color: #d63e57;
+}
+
+.mode-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

@@ -112,7 +112,10 @@ function Analysis({ analysisData: propAnalysisData }) {
 
         {activeTab === 2 && (
           <div className="coach-tab">
-            <CoachChat emotionSegments={analysisData.emotion_segments} />
+            <CoachChat 
+              emotionSegments={analysisData.emotion_segments}
+              analysisData={analysisData}
+            />
           </div>
         )}
       </TabPanel>
