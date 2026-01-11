@@ -316,6 +316,7 @@ def chat_with_coach():
         data = request.json
         user_input = data.get('message', '')
         emotion_segments = data.get('emotion_segments', [])
+        include_audio = data.get('include_audio', False)
         
         # Format emotion context for Gemini
         emotion_context = "\n".join([f"{seg['time_range']}: {seg['emotion']}" 
@@ -324,12 +325,13 @@ def chat_with_coach():
         # Generate response from Gemini
         response = gemini_service.generate_chat_response(user_input, emotion_context)
         
-        # Generate audio feedback using Deepgram TTS
+        # Generate audio feedback using Deepgram TTS only if requested
         audio_url = None
-        try:
-            audio_url = deepgram_service.text_to_speech(response)
-        except Exception as e:
-            print(f"Warning: TTS generation failed: {str(e)}", file=sys.stderr)
+        if include_audio:
+            try:
+                audio_url = deepgram_service.text_to_speech(response)
+            except Exception as e:
+                print(f"Warning: TTS generation failed: {str(e)}", file=sys.stderr)
         
         return jsonify({
             'response': response,

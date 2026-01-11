@@ -14,6 +14,7 @@ function CoachChat({ emotionSegments, analysisData }) {
   const [isVoiceMode, setIsVoiceMode] = useState(false);
   const [isVoiceActive, setIsVoiceActive] = useState(false);
   const [voiceStatus, setVoiceStatus] = useState('Ready');
+  const [audioResponseEnabled, setAudioResponseEnabled] = useState(false);
   
   const chatEndRef = useRef(null);
   const audioRef = useRef(null);
@@ -53,16 +54,21 @@ function CoachChat({ emotionSegments, analysisData }) {
     try {
       const response = await sendChatMessage({
         message,
-        emotion_segments: emotionSegments
+        emotion_segments: emotionSegments,
+        include_audio: audioResponseEnabled
       });
       
       const aiMessage = { role: 'ai', content: response.response };
       setChatHistory(prev => [...prev, aiMessage]);
       
-      if (response.audio_url) {
-        setAudioUrl(response.audio_url);
+      if (audioResponseEnabled && response.audio_url) {
+        // Play audio automatically without showing controls
         const audio = new Audio(response.audio_url);
         audio.play().catch(err => console.error('Audio playback failed:', err));
+        // Don't set audioUrl state to avoid showing playback bar
+      } else {
+        // Clear any previous audio URL
+        setAudioUrl(null);
       }
     } catch (error) {
       console.error('Error sending message:', error);
@@ -105,6 +111,12 @@ function CoachChat({ emotionSegments, analysisData }) {
         // On agent speaking (audio data)
         (audioData) => {
           playAudioChunk(audioData);
+        },
+        
+        // On agent text (to show in chat)
+        (agentText) => {
+          const aiMessage = { role: 'ai', content: agentText };
+          setChatHistory(prev => [...prev, aiMessage]);
         },
         
         // On error
@@ -223,12 +235,20 @@ function CoachChat({ emotionSegments, analysisData }) {
       { role: 'ai', content: "👋 I'm your AI speech coach. Choose text or voice mode to get started!" }
     ]);
     setAudioUrl(null);
+    // Don't reset audioResponseEnabled - let user keep their preference
   };
 
   const handleModeChange = (voiceMode) => {
     if (isVoiceActive) {
       stopVoiceAgent();
     }
+    
+    // Clear chat when switching modes
+    setChatHistory([
+      { role: 'ai', content: "👋 I'm your AI speech coach. Choose text or voice mode to get started!" }
+    ]);
+    setAudioUrl(null);
+    
     setIsVoiceMode(voiceMode);
   };
   
@@ -276,13 +296,6 @@ function CoachChat({ emotionSegments, analysisData }) {
           )}
           <div ref={chatEndRef} />
         </div>
-        
-        {audioUrl && !isVoiceMode && (
-          <div className="audio-feedback">
-            <audio ref={audioRef} src={audioUrl} controls />
-            <p className="audio-hint">🔊 Audio feedback available</p>
-          </div>
-        )}
         
         {!isVoiceMode && (
           <div className="suggested-questions">
@@ -341,6 +354,14 @@ function CoachChat({ emotionSegments, analysisData }) {
                   onClick={resetChat}
                 >
                   Reset
+                </button>
+                <button
+                  type="button"
+                  className={`audio-toggle-button ${audioResponseEnabled ? 'active' : ''}`}
+                  onClick={() => setAudioResponseEnabled(!audioResponseEnabled)}
+                  title={audioResponseEnabled ? 'Disable audio responses' : 'Enable audio responses'}
+                >
+                  {audioResponseEnabled ? '🔊' : '🔇'} Audio
                 </button>
                 <button 
                   type="submit" 

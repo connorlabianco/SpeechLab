@@ -13,7 +13,7 @@ export class VoiceAgentService {
     this.isActive = false;
   }
 
-  async start(analysisData, onTranscript, onAgentSpeaking, onError) {
+  async start(analysisData, onTranscript, onAgentSpeaking, onAgentText, onError) {
     try {
       // Create system prompt with full analysis
       const systemPrompt = this.buildSystemPrompt(analysisData);
@@ -126,7 +126,10 @@ export class VoiceAgentService {
               if (process.env.NODE_ENV === 'development') {
                 console.log('Agent said:', content);
               }
-              // Optionally add agent text to chat
+              // Add agent text to chat
+              if (onAgentText) {
+                onAgentText(content);
+              }
             }
           }
         }
