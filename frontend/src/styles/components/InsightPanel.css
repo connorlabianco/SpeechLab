@@ -94,7 +94,12 @@
 }
 
 .metrics-section {
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
+}
+
+.metrics-card,
+.emotion-metrics-card {
+  margin-bottom: 1rem;
 }
 
 .metrics-grid {
@@ -143,6 +148,10 @@
 
 .metric-indicator.neutral {
   color: var(--text-light);
+}
+
+.coaching-tips-card {
+  margin-bottom: 2rem;
 }
 
 .coaching-tips {

@@ -4,7 +4,8 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Header from './components/layout/Header';
 import Footer from './components/layout/Footer';
 import ProtectedRoute from './components/ProtectedRoute';
-import Home from './pages/Home';
+import HomeLanding from './pages/HomeLanding';
+import Dashboard from './pages/Dashboard';
 import Analysis from './pages/Analysis';
 import History from './pages/History';
 import Login from './pages/Login';
@@ -24,11 +25,12 @@ function AppContent() {
       <main className="main-content">
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/" element={<HomeLanding />} />
           <Route 
-            path="/" 
+            path="/dashboard" 
             element={
               <ProtectedRoute>
-                <Home onAnalysisComplete={handleAnalysisComplete} />
+                <Dashboard />
               </ProtectedRoute>
             } 
           />

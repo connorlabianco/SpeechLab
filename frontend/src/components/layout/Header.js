@@ -24,11 +24,17 @@ function Header() {
           <span className="logo-text">SpeechLabs</span>
         </Link>
         <nav className="main-nav">
+          <ul className="nav-links">
+            <li><Link to="/" className="nav-link">Home</Link></li>
+            {isAuthenticated && (
+              <>
+                <li><Link to="/dashboard" className="nav-link">Dashboard</Link></li>
+                <li><Link to="/history" className="nav-link">History</Link></li>
+              </>
+            )}
+          </ul>
           {isAuthenticated ? (
             <div className="user-menu">
-              <Link to="/history" className="btn-history">
-                📊 History
-              </Link>
               {user && (
                 <div className="user-info">
                   {user.picture && (
@@ -50,10 +56,7 @@ function Header() {
               </button>
             </div>
           ) : (
-            <ul>
-              <li><Link to="/login">Login</Link></li>
-              <li><a href="https://github.com/yourusername/speechlabs" target="_blank" rel="noopener noreferrer">GitHub</a></li>
-            </ul>
+            <Link to="/login" className="btn-login">Login</Link>
           )}
         </nav>
       </div>

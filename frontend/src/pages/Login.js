@@ -35,10 +35,9 @@ function Login() {
   // Redirect if already authenticated
   useEffect(() => {
     if (!loading && isAuthenticated) {
-      const from = location.state?.from?.pathname || '/';
-      navigate(from, { replace: true });
+      navigate('/dashboard', { replace: true });
     }
-  }, [isAuthenticated, loading, navigate, location]);
+  }, [isAuthenticated, loading, navigate]);
 
   const handleOAuthCallback = async () => {
     try {
@@ -65,6 +64,15 @@ function Login() {
 
   return (
     <div className="login-page">
+      {/* Base44 gradient background elements */}
+      <div className="gradient-bg"></div>
+      <div className="gradient-overlay"></div>
+      <div className="orb orb1"></div>
+      <div className="orb orb2"></div>
+      <div className="orb orb3"></div>
+      <div className="orb orb4"></div>
+      <div className="grain"></div>
+
       <div className="login-container">
         <div className="login-card">
           <div className="login-header">

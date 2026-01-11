@@ -42,19 +42,19 @@
   }
   
   .upload-icon {
-    font-size: 3rem;
-    margin-bottom: 1rem;
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
     color: var(--primary-color);
   }
   
   .upload-text {
-    font-size: 1.2rem;
-    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+    margin-bottom: 0.25rem;
     color: var(--text-color);
   }
   
   .upload-hint {
-    font-size: 0.9rem;
+    font-size: 0.75rem;
     color: var(--text-light);
   }
   

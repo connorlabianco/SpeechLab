@@ -69,6 +69,15 @@ function History() {
 
   return (
     <div className="history-page">
+      {/* Base44 gradient background elements */}
+      <div className="gradient-bg"></div>
+      <div className="gradient-overlay"></div>
+      <div className="orb orb1"></div>
+      <div className="orb orb2"></div>
+      <div className="orb orb3"></div>
+      <div className="orb orb4"></div>
+      <div className="grain"></div>
+
       <div className="history-header">
         <h1>Analysis History</h1>
         <p className="subtitle">View and manage your past speech analyses</p>
@@ -117,7 +126,7 @@ function History() {
                 <div className="metric">
                   <span className="metric-label">Clarity Score</span>
                   <span className="metric-value">
-                    {analysis.clarity_score ? `${(analysis.clarity_score * 100).toFixed(0)}%` : 'N/A'}
+                    {analysis.clarity_score ? `${analysis.clarity_score.toFixed(0)}%` : 'N/A'}
                   </span>
                 </div>
               </div>

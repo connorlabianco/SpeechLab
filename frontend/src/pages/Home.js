@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import VideoUploader from '../components/VideoUploader';
-import FeatureList from '../components/FeatureList';
+import ImprovementTimeline from '../components/ImprovementTimeline';
 import '../styles/pages/Home.css';
 
 function Home({ onAnalysisComplete }) {
@@ -31,23 +31,35 @@ function Home({ onAnalysisComplete }) {
 
   return (
     <div className="home-page">
-      <section className="hero">
-        <h1>SpeechLabs</h1>
-        <p className="tagline">Creating confidence through user-driven feedback.</p>
-        <p className="subtitle">Upload a video of yourself speaking to get personalized feedback on your speech emotion and delivery.</p>
+      <div className="home-container">
+        <section className="improvement-section">
+          <ImprovementTimeline />
+        </section>
         
-        <VideoUploader 
-          onUploadStart={handleUploadStart}
-          onUploadSuccess={handleUploadSuccess}
-          onUploadError={handleUploadError}
-          isLoading={isLoading}
-        />
-      </section>
-      
-      <section className="features">
-        <h2>Key Features</h2>
-        <FeatureList />
-      </section>
+        <section className="upload-section">
+          <div className="upload-card">
+            <h2>Start New Analysis</h2>
+            <p className="upload-subtitle">
+              Upload a video of yourself speaking to get personalized feedback on your speech emotion and delivery.
+            </p>
+            
+            <VideoUploader 
+              onUploadStart={handleUploadStart}
+              onUploadSuccess={handleUploadSuccess}
+              onUploadError={handleUploadError}
+              isLoading={isLoading}
+            />
+          </div>
+          
+          <div className="or-divider">
+            <span>OR</span>
+          </div>
+          
+          <button className="conversation-practice-btn">
+            Conversation Practice
+          </button>
+        </section>
+      </div>
     </div>
   );
 }

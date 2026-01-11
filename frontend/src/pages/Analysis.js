@@ -73,6 +73,15 @@ function Analysis({ analysisData: propAnalysisData }) {
 
   return (
     <div className="analysis-page">
+      {/* Base44 gradient background elements */}
+      <div className="gradient-bg"></div>
+      <div className="gradient-overlay"></div>
+      <div className="orb orb1"></div>
+      <div className="orb orb2"></div>
+      <div className="orb orb3"></div>
+      <div className="orb orb4"></div>
+      <div className="grain"></div>
+
       <h1>Speech Analysis Results</h1>
       
       <TabPanel 
