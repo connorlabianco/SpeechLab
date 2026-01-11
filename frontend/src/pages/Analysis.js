@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
+import { getAnalysisById } from '../services/api';
 import EmotionTimeline from '../components/EmotionTimeline';
 import TranscriptView from '../components/TranscriptView';
 import InsightPanel from '../components/InsightPanel';
@@ -7,15 +8,54 @@ import CoachChat from '../components/CoachChat';
 import TabPanel from '../components/layout/TabPanel';
 import '../styles/pages/Analysis.css';
 
-function Analysis({ analysisData }) {
+function Analysis({ analysisData: propAnalysisData }) {
   const [activeTab, setActiveTab] = useState(0);
+  const [analysisData, setAnalysisData] = useState(propAnalysisData);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
   const navigate = useNavigate();
+  const { id } = useParams();
 
   useEffect(() => {
-    if (!analysisData) {
+    // If we have an ID in the URL, fetch the analysis from the database
+    if (id) {
+      fetchAnalysisById(id);
+    } else if (propAnalysisData) {
+      // If we have prop data (from new upload), use it
+      setAnalysisData(propAnalysisData);
+    } else {
+      // No ID and no prop data, redirect to home
       navigate('/');
     }
-  }, [analysisData, navigate]);
+  }, [id, propAnalysisData, navigate]);
+
+  const fetchAnalysisById = async (analysisId) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const data = await getAnalysisById(analysisId);
+      setAnalysisData(data);
+    } catch (err) {
+      console.error('Error fetching analysis:', err);
+      setError('Failed to load analysis. Please try again.');
+      // Redirect to history after a delay
+      setTimeout(() => navigate('/history'), 2000);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (isLoading) {
+    return <div className="loading">Loading analysis...</div>;
+  }
+
+  if (error) {
+    return (
+      <div className="analysis-page">
+        <div className="error-message">{error}</div>
+      </div>
+    );
+  }
 
   if (!analysisData) {
     return <div className="loading">Loading...</div>;

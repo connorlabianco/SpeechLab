@@ -6,6 +6,7 @@ import Footer from './components/layout/Footer';
 import ProtectedRoute from './components/ProtectedRoute';
 import Home from './pages/Home';
 import Analysis from './pages/Analysis';
+import History from './pages/History';
 import Login from './pages/Login';
 import NotFound from './pages/NotFound';
 import './styles/App.css';
@@ -44,6 +45,14 @@ function AppContent() {
             element={
               <ProtectedRoute>
                 <Analysis analysisData={analysisData} />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/history" 
+            element={
+              <ProtectedRoute>
+                <History />
               </ProtectedRoute>
             } 
           />

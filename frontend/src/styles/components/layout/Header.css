@@ -73,6 +73,25 @@
     gap: 1rem;
   }
 
+  .btn-history {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .btn-history:hover {
+    background-color: var(--primary-color-dark, #0056b3);
+    color: white;
+  }
+
   .user-info {
     display: flex;
     align-items: center;

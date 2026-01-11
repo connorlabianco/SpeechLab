@@ -11,7 +11,13 @@ function Home({ onAnalysisComplete }) {
   const handleUploadSuccess = (data) => {
     setIsLoading(false);
     onAnalysisComplete(data);
-    navigate('/analysis');
+    // Navigate to the analysis page using the ID from the database
+    if (data.analysis_id) {
+      navigate(`/analysis/${data.analysis_id}`);
+    } else {
+      // Fallback to the old route if no ID is provided
+      navigate('/analysis');
+    }
   };
 
   const handleUploadStart = () => {

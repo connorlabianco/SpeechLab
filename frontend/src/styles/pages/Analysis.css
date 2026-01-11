@@ -6,6 +6,23 @@
     text-align: center;
     margin-bottom: 2rem;
   }
+
+  .analysis-page .loading {
+    text-align: center;
+    padding: 3rem;
+    font-size: 1.2rem;
+    color: #666;
+  }
+
+  .analysis-page .error-message {
+    background-color: #fee;
+    color: #c33;
+    padding: 1rem;
+    border-radius: 8px;
+    margin: 2rem auto;
+    max-width: 600px;
+    text-align: center;
+  }
   
   .analysis-grid {
     display: grid;

@@ -26,6 +26,9 @@ function Header() {
         <nav className="main-nav">
           {isAuthenticated ? (
             <div className="user-menu">
+              <Link to="/history" className="btn-history">
+                📊 History
+              </Link>
               {user && (
                 <div className="user-info">
                   {user.picture && (

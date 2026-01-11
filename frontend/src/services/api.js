@@ -133,6 +133,51 @@ export const generateAnalysisAudio = async (geminiAnalysis, section = 'all') => 
 };
 
 /**
+ * Get all analyses for the current user (dashboard/history)
+ */
+export const getAnalyses = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/dashboard`, {
+      method: 'GET',
+      credentials: 'include'
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to fetch analyses');
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching analyses:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get a specific analysis by ID
+ */
+export const getAnalysisById = async (analysisId) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/analysis/${analysisId}`, {
+      method: 'GET',
+      credentials: 'include'
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to fetch analysis');
+    }
+    
+    const data = await response.json();
+    return data.analysis;
+  } catch (error) {
+    console.error('Error fetching analysis:', error);
+    throw error;
+  }
+};
+
+/**
  * Check API server health
  */
 export const checkApiHealth = async () => {
