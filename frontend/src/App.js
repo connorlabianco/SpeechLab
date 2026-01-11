@@ -10,7 +10,6 @@ import './styles/App.css';
 function App() {
   const [analysisData, setAnalysisData] = useState(null);
   
-  // Handler for setting analysis data from the VideoUploader component
   const handleAnalysisComplete = (data) => {
     setAnalysisData(data);
   };

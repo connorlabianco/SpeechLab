@@ -5,34 +5,32 @@ import '../styles/components/FeatureList.css';
 function FeatureList() {
   const features = [
     {
-      icon: '🎥',
       title: 'Video Upload',
       description: 'Upload a video of yourself speaking to get personalized feedback.'
     },
     {
-      icon: '🔊',
       title: 'Speech Emotion Recognition',
       description: 'Detects tone, mood, and speaking style using advanced AI models.'
     },
     {
-      icon: '📊',
       title: 'Speaking Rate Analysis',
-      description: 'Measures your words-per-second rate and identifies optimal pacing.'
+      description: 'Measures your words-per-second rate with optimal range indicators (2.0-3.0 WPS) and variation analysis.'
     },
     {
-      icon: '🧠',
       title: 'AI-Powered Feedback',
-      description: 'Get personalized insights and tips to improve your delivery.'
+      description: 'Get personalized insights and tips to improve your delivery using Google Gemini AI.'
     },
     {
-      icon: '💬',
       title: 'AI Speech Coach',
-      description: 'Chat with an AI coach for specific advice on improving your speech.'
+      description: 'Chat with an AI coach for specific advice on improving your speech patterns.'
     },
     {
-      icon: '📈',
+      title: 'Audio Feedback',
+      description: 'Listen to coaching advice with AI-generated voice feedback. Generate audio for each section: summary, strengths, improvements, and tips.'
+    },
+    {
       title: 'Interactive Visualizations',
-      description: 'View detailed timelines of your emotion patterns and speaking rate.'
+      description: 'View detailed timelines of your emotion patterns and speaking rate with interactive charts.'
     }
   ];
 
@@ -40,7 +38,6 @@ function FeatureList() {
     <div className="feature-list">
       {features.map((feature, index) => (
         <Card key={index} className="feature-card">
-          <div className="feature-icon">{feature.icon}</div>
           <h3 className="feature-title">{feature.title}</h3>
           <p className="feature-description">{feature.description}</p>
         </Card>

@@ -9,9 +9,10 @@ function CoachChat({ emotionSegments }) {
   ]);
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [audioUrl, setAudioUrl] = useState(null);
   const chatEndRef = useRef(null);
+  const audioRef = useRef(null);
   
-  // Auto-scroll to bottom when chat history changes
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatHistory]);
@@ -21,25 +22,29 @@ function CoachChat({ emotionSegments }) {
     
     if (!message.trim()) return;
     
-    // Add user message to chat
     const userMessage = { role: 'user', content: message };
     setChatHistory(prev => [...prev, userMessage]);
     setMessage('');
     setIsLoading(true);
     
     try {
-      // Send message to backend
       const response = await sendChatMessage({
         message,
         emotion_segments: emotionSegments
       });
       
-      // Add AI response to chat
       const aiMessage = { role: 'ai', content: response.response };
       setChatHistory(prev => [...prev, aiMessage]);
+      
+      // Handle audio feedback from Deepgram TTS
+      if (response.audio_url) {
+        setAudioUrl(response.audio_url);
+        // Auto-play the audio feedback
+        const audio = new Audio(response.audio_url);
+        audio.play().catch(err => console.error('Audio playback failed:', err));
+      }
     } catch (error) {
       console.error('Error sending message:', error);
-      // Add error message to chat
       const errorMessage = { 
         role: 'ai', 
         content: "I'm having trouble connecting right now. Please try again later.",
@@ -62,9 +67,9 @@ function CoachChat({ emotionSegments }) {
     setChatHistory([
       { role: 'ai', content: "👋 I'm your AI speech coach. I've analyzed your speech patterns and emotions. What would you like to improve today?" }
     ]);
+    setAudioUrl(null);
   };
   
-  // Suggested questions for the user
   const suggestedQuestions = [
     "How can I improve my speaking pace?",
     "What should I do to sound more confident?",
@@ -105,6 +110,13 @@ function CoachChat({ emotionSegments }) {
           )}
           <div ref={chatEndRef} />
         </div>
+        
+        {audioUrl && (
+          <div className="audio-feedback">
+            <audio ref={audioRef} src={audioUrl} controls />
+            <p className="audio-hint">🔊 Audio feedback available</p>
+          </div>
+        )}
         
         <div className="suggested-questions">
           <h4>Try asking:</h4>

@@ -47,7 +47,7 @@ class SpeechAnalyzer:
             return "neutral"
 
         try:
-            # Load audio using soundfile directly (avoids torchcodec dependency)
+            # Load audio using soundfile directly
             waveform_np, sample_rate = sf.read(audio_file_path)
 
             # Convert to mono if stereo

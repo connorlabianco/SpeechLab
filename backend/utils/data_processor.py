@@ -85,7 +85,7 @@ class DataProcessor:
             segment_duration = segment_durations[i] if i < len(segment_durations) else 0
             
             start_time = self.format_timestamp(current_time)
-            # For the last segment, use the total duration instead of current_time + segment_duration
+            # For the last segment, use the total duration
             if i == len(emotion_results) - 1:
                 end_time = self.format_timestamp(total_duration)
             else:
@@ -97,22 +97,6 @@ class DataProcessor:
             current_time += segment_duration
         
         return emotion_segments
-    
-    def save_transcription_data(self, output_dir: str, transcription_data: List[Dict[str, Any]]) -> str:
-        """
-        Save transcription data to JSON file.
-        
-        Args:
-            output_dir: Directory to save the JSON file
-            transcription_data: List of transcription segment dictionaries
-            
-        Returns:
-            Path to the saved JSON file
-        """
-        json_path = os.path.join(output_dir, "transcripts.json")
-        with open(json_path, "w") as f:
-            json.dump(transcription_data, f, indent=4)
-        return json_path
     
     def save_analysis_results(
         self, 
@@ -154,45 +138,6 @@ class DataProcessor:
         
         return json_path
     
-    def load_analysis_results(self, json_path: str) -> Dict[str, Any]:
-        """
-        Load analysis results from a JSON file.
-        
-        Args:
-            json_path: Path to the JSON file
-            
-        Returns:
-            Dictionary containing the loaded analysis results
-        """
-        if not os.path.exists(json_path):
-            return {"error": f"File not found: {json_path}"}
-        
-        try:
-            with open(json_path, "r") as f:
-                results = json.load(f)
-            
-            # Convert emotion data back to tuple format if needed
-            if "emotion_segments" in results:
-                emotion_segments = [(item["time_range"], item["emotion"]) 
-                                   for item in results["emotion_segments"]]
-                results["emotion_segments"] = emotion_segments
-            
-            return results
-        except Exception as e:
-            return {"error": f"Error loading results: {str(e)}"}
-    
-    def extract_segment_emotions(self, emotion_results: Dict[str, str]) -> List[str]:
-        """
-        Extract a list of emotions from the analysis results.
-        
-        Args:
-            emotion_results: Dictionary mapping segment filenames to emotions
-            
-        Returns:
-            List of emotions in segment order
-        """
-        return list(emotion_results.values())
-    
     def calculate_emotion_stats(self, emotion_segments: List[Tuple[str, str]]) -> Dict[str, Any]:
         """
         Calculate statistics about the emotion distribution.
@@ -225,7 +170,7 @@ class DataProcessor:
         dominant_count = sorted_counts[0][1] if sorted_counts else 0
         dominant_percentage = (dominant_count / total_segments) * 100 if total_segments > 0 else 0
         
-        # Calculate emotion diversity (unique emotions)
+        # Calculate emotion diversity
         emotion_diversity = len(emotion_counts)
         
         # Count emotion transitions

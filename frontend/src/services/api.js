@@ -1,16 +1,12 @@
 /**
- * API Service for Speechably
+ * API Service for SpeechLabs
  * Handles all communication with the backend API
  */
 
-// API base URL - set to the Flask backend URL
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
 /**
  * Upload a video file for analysis
- * 
- * @param {FormData} formData - Form data containing the video file
- * @returns {Promise<Object>} - Analysis results
  */
 export const uploadVideo = async (formData) => {
   try {
@@ -33,9 +29,6 @@ export const uploadVideo = async (formData) => {
 
 /**
  * Send a chat message to the AI coach
- * 
- * @param {Object} data - Chat data containing message and emotion segments
- * @returns {Promise<Object>} - AI response
  */
 export const sendChatMessage = async (data) => {
   try {
@@ -60,9 +53,37 @@ export const sendChatMessage = async (data) => {
 };
 
 /**
+ * Generate audio narration of Gemini analysis
+ * @param {Object} geminiAnalysis - The Gemini analysis object
+ * @param {string} section - Optional section to generate audio for: 'summary', 'strengths', 'improvements', 'tips', or 'all' (default)
+ */
+export const generateAnalysisAudio = async (geminiAnalysis, section = 'all') => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/generate-analysis-audio`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        gemini_analysis: geminiAnalysis,
+        section: section
+      })
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to generate audio');
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error generating analysis audio:', error);
+    throw error;
+  }
+};
+
+/**
  * Check API server health
- * 
- * @returns {Promise<boolean>} - True if API is healthy
  */
 export const checkApiHealth = async () => {
   try {

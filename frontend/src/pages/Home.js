@@ -1,4 +1,3 @@
-// src/pages/Home.js
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import VideoUploader from '../components/VideoUploader';
@@ -22,13 +21,12 @@ function Home({ onAnalysisComplete }) {
   const handleUploadError = (error) => {
     setIsLoading(false);
     console.error("Upload error:", error);
-    // Show error state
   };
 
   return (
     <div className="home-page">
       <section className="hero">
-        <h1>Speechably</h1>
+        <h1>SpeechLabs</h1>
         <p className="tagline">Creating confidence through user-driven feedback.</p>
         <p className="subtitle">Upload a video of yourself speaking to get personalized feedback on your speech emotion and delivery.</p>
         

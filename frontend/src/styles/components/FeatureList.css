@@ -18,14 +18,10 @@
     box-shadow: var(--card-shadow);
   }
   
-  .feature-icon {
-    font-size: 2.5rem;
-    margin-bottom: 1rem;
-  }
-  
   .feature-title {
-    font-size: 1.1rem;
+    font-size: 1.2rem;
     margin-bottom: 0.75rem;
+    color: var(--primary-color);
   }
   
   .feature-description {

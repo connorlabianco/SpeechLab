@@ -11,7 +11,6 @@ function Analysis({ analysisData }) {
   const [activeTab, setActiveTab] = useState(0);
   const navigate = useNavigate();
 
-  // Redirect to home if no analysis data
   useEffect(() => {
     if (!analysisData) {
       navigate('/');
@@ -41,14 +40,12 @@ function Analysis({ analysisData }) {
         activeTab={activeTab} 
         onChange={handleTabChange}
       >
-        {/* Tab 1: Analysis */}
         {activeTab === 0 && (
           <div className="analysis-tab">
             <div className="analysis-grid">
               <div className="analysis-section timeline-section">
-                <h2>Emotion & Speaking Rate Timeline</h2>
+                <h2>Speaking Rate Timeline</h2>
                 <EmotionTimeline 
-                  emotionSegments={analysisData.emotion_segments}
                   wpsData={analysisData.wps_data}
                 />
               </div>
@@ -63,7 +60,6 @@ function Analysis({ analysisData }) {
           </div>
         )}
 
-        {/* Tab 2: Insights */}
         {activeTab === 1 && (
           <div className="insights-tab">
             <InsightPanel 
@@ -74,7 +70,6 @@ function Analysis({ analysisData }) {
           </div>
         )}
 
-        {/* Tab 3: AI Coach */}
         {activeTab === 2 && (
           <div className="coach-tab">
             <CoachChat emotionSegments={analysisData.emotion_segments} />

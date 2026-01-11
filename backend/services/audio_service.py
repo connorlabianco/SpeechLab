@@ -107,7 +107,7 @@ class AudioSegmenter:
             video_path: Path to the video file
             output_path: Path to save the extracted audio
         """
-        # Verify FFmpeg is available (check if it's in PATH or a valid file path)
+        # Verify FFmpeg is available
         ffmpeg_executable = shutil.which(self.config.ffmpeg_path) or (
             self.config.ffmpeg_path if os.path.isfile(self.config.ffmpeg_path) else None
         )

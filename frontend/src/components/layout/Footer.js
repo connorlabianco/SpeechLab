@@ -7,7 +7,7 @@ function Footer() {
   return (
     <footer className="footer">
       <div className="footer-container">
-        <p>&copy; {currentYear} Speechably. All rights reserved.</p>
+        <p>&copy; {currentYear} SpeechLabs. All rights reserved.</p>
         <p>Created to help people improve their public speaking and communication skills.</p>
       </div>
     </footer>

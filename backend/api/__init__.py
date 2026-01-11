@@ -1,3 +1,3 @@
 """
-API package for Speechably Flask application.
-""" 
+API package for SpeechLabs Flask application.
+"""

@@ -1,19 +1,167 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
 import Card from './layout/Card';
+import { generateAnalysisAudio } from '../services/api';
 import '../styles/components/InsightPanel.css';
 
 function InsightPanel({ geminiAnalysis, emotionMetrics, speechClarity }) {
-  // Ensure we have valid data
+  // Track audio state for each section separately
+  const [audioState, setAudioState] = useState({
+    summary: { isLoading: false, audioUrl: null, audioElement: null, error: null },
+    strengths: { isLoading: false, audioUrl: null, audioElement: null, error: null },
+    improvements: { isLoading: false, audioUrl: null, audioElement: null, error: null },
+    tips: { isLoading: false, audioUrl: null, audioElement: null, error: null }
+  });
+  
+  // Use ref to track audio elements for cleanup
+  const audioElementsRef = useRef(audioState);
+  
   const hasGeminiAnalysis = geminiAnalysis && 
                           Object.keys(geminiAnalysis).length > 0 && 
                           geminiAnalysis.summary !== "Gemini analysis not available. Please check your API key configuration.";
   const hasEmotionMetrics = emotionMetrics && Object.keys(emotionMetrics).length > 0;
   const hasSpeechClarity = speechClarity && Object.keys(speechClarity).length > 0;
   
-  // Check for API configuration error
   const hasApiError = geminiAnalysis && 
                      geminiAnalysis.summary && 
                      geminiAnalysis.summary.includes("API key configuration");
+  
+  const handlePlayAudio = async (section) => {
+    if (!hasGeminiAnalysis) {
+      setAudioState(prev => ({
+        ...prev,
+        [section]: { ...prev[section], error: 'No analysis available to convert to audio' }
+      }));
+      return;
+    }
+    
+    // Stop any currently playing audio in this section
+    const currentAudio = audioState[section].audioElement;
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio.currentTime = 0;
+    }
+    
+    setAudioState(prev => ({
+      ...prev,
+      [section]: { ...prev[section], isLoading: true, error: null }
+    }));
+    
+    try {
+      const response = await generateAnalysisAudio(geminiAnalysis, section);
+      
+      if (response.audio_data) {
+        // Create and play audio element
+        const audio = new Audio(response.audio_data);
+        audio.onended = () => {
+          setAudioState(prev => ({
+            ...prev,
+            [section]: { ...prev[section], audioUrl: null, audioElement: null }
+          }));
+        };
+        audio.onerror = () => {
+          setAudioState(prev => ({
+            ...prev,
+            [section]: { 
+              ...prev[section], 
+              error: 'Failed to play audio',
+              isLoading: false,
+              audioElement: null
+            }
+          }));
+        };
+        
+        audio.play().catch(err => {
+          console.error('Error playing audio:', err);
+          setAudioState(prev => ({
+            ...prev,
+            [section]: { 
+              ...prev[section], 
+              error: 'Failed to play audio',
+              isLoading: false,
+              audioElement: null
+            }
+          }));
+        });
+        
+        setAudioState(prev => ({
+          ...prev,
+          [section]: { 
+            ...prev[section], 
+            audioUrl: response.audio_data,
+            audioElement: audio,
+            isLoading: false
+          }
+        }));
+      } else {
+        throw new Error('No audio data received');
+      }
+    } catch (error) {
+      console.error('Error generating audio:', error);
+      const errorMessage = error.message || 'Failed to generate audio';
+      setAudioState(prev => ({
+        ...prev,
+        [section]: { 
+          ...prev[section], 
+          error: errorMessage,
+          isLoading: false
+        }
+      }));
+    }
+  };
+  
+  const handleStopAudio = (section) => {
+    const audioElement = audioState[section].audioElement;
+    if (audioElement) {
+      audioElement.pause();
+      audioElement.currentTime = 0;
+      setAudioState(prev => ({
+        ...prev,
+        [section]: { ...prev[section], audioUrl: null, audioElement: null }
+      }));
+    }
+  };
+  
+  // Keep ref in sync with state
+  useEffect(() => {
+    audioElementsRef.current = audioState;
+  }, [audioState]);
+  
+  // Cleanup audio elements on unmount
+  useEffect(() => {
+    return () => {
+      // Cleanup all audio elements using ref to get latest state
+      Object.values(audioElementsRef.current).forEach(state => {
+        if (state.audioElement) {
+          state.audioElement.pause();
+          state.audioElement.src = '';
+        }
+      });
+    };
+  }, []);
+  
+  // Helper function to render audio button for a section
+  const renderAudioButton = (section) => {
+    const state = audioState[section];
+    const isPlaying = state.audioUrl !== null;
+    
+    return (
+      <button 
+        className="audio-play-button"
+        onClick={() => isPlaying ? handleStopAudio(section) : handlePlayAudio(section)}
+        disabled={state.isLoading}
+        title={isPlaying ? "Stop audio" : `Play audio narration of ${section}`}
+      >
+        {state.isLoading ? (
+          <span className="audio-loading">⏳</span>
+        ) : isPlaying ? (
+          <span className="audio-stop">⏸️</span>
+        ) : (
+          <span className="audio-play">🔊</span>
+        )}
+      </button>
+    );
+  };
   
   if (!hasGeminiAnalysis && !hasEmotionMetrics) {
     return (
@@ -25,7 +173,6 @@ function InsightPanel({ geminiAnalysis, emotionMetrics, speechClarity }) {
   
   return (
     <div className="insight-panel">
-      {/* API Error Message */}
       {hasApiError && (
         <Card className="error-card">
           <h3>AI Analysis Unavailable</h3>
@@ -46,15 +193,21 @@ function InsightPanel({ geminiAnalysis, emotionMetrics, speechClarity }) {
         </Card>
       )}
       
-      {/* Summary Section */}
       {hasGeminiAnalysis && (
         <Card className="summary-card">
-          <h3>Summary</h3>
+          <div className="summary-header">
+            <h3>Summary</h3>
+            {renderAudioButton('summary')}
+          </div>
+          {audioState.summary.error && (
+            <div className="audio-error">
+              <small>{audioState.summary.error}</small>
+            </div>
+          )}
           <p className="summary-text">{geminiAnalysis.summary}</p>
         </Card>
       )}
       
-      {/* Strengths and Improvement Areas */}
       <div className="insights-grid">
         {hasGeminiAnalysis && (
           <>
@@ -85,7 +238,6 @@ function InsightPanel({ geminiAnalysis, emotionMetrics, speechClarity }) {
         )}
       </div>
       
-      {/* Speech Metrics */}
       <div className="metrics-section">
         {hasSpeechClarity && (
           <Card className="metrics-card">
@@ -97,10 +249,10 @@ function InsightPanel({ geminiAnalysis, emotionMetrics, speechClarity }) {
                   {speechClarity.avg_wps} WPS
                   <span className={`metric-indicator ${
                     speechClarity.avg_wps > 3.0 ? 'warning' : 
-                    speechClarity.avg_wps < 1.5 ? 'caution' : 'good'
+                    speechClarity.avg_wps < 2.0 ? 'caution' : 'good'
                   }`}>
                     {speechClarity.avg_wps > 3.0 ? '(Too Fast)' : 
-                     speechClarity.avg_wps < 1.5 ? '(Too Slow)' : '(Good)'}
+                     speechClarity.avg_wps < 2.0 ? '(Too Slow)' : '(Good)'}
                   </span>
                 </span>
               </div>
@@ -110,11 +262,11 @@ function InsightPanel({ geminiAnalysis, emotionMetrics, speechClarity }) {
                 <span className="metric-value">
                   {speechClarity.wps_variation?.toFixed(2) || "0.00"} WPS
                   <span className={`metric-indicator ${
-                    speechClarity.wps_variation < 0.5 ? 'caution' :
-                    speechClarity.wps_variation > 2.0 ? 'warning' : 'good'
+                    speechClarity.wps_variation < 0.3 ? 'caution' :
+                    speechClarity.wps_variation > 0.7 ? 'warning' : 'good'
                   }`}>
-                    {speechClarity.wps_variation < 0.5 ? '(Low Variation)' : 
-                     speechClarity.wps_variation > 2.0 ? '(High Variation)' : '(Good)'}
+                    {speechClarity.wps_variation < 0.3 ? '(Low Variation)' : 
+                     speechClarity.wps_variation > 0.7 ? '(High Variation)' : '(Good)'}
                   </span>
                 </span>
               </div>
@@ -189,21 +341,32 @@ function InsightPanel({ geminiAnalysis, emotionMetrics, speechClarity }) {
         )}
       </div>
       
-      {/* Coaching Tips */}
       {hasGeminiAnalysis && geminiAnalysis.coaching_tips && geminiAnalysis.coaching_tips.length > 0 ? (
         <Card className="coaching-tips-card">
-          <h3>Coaching Tips</h3>
+          <div className="card-header-with-audio">
+            <h3>Coaching Tips</h3>
+            {renderAudioButton('tips')}
+          </div>
+          {audioState.tips.error && (
+            <div className="audio-error">
+              <small>{audioState.tips.error}</small>
+            </div>
+          )}
           <div className="coaching-tips">
-            {geminiAnalysis.coaching_tips.map((tip, index) => (
-              <div key={index} className="coaching-tip">
-                <span className="tip-number">{index + 1}</span>
-                <p className="tip-text">
-                  {tip && typeof tip === 'object'
-                    ? tip.tip || JSON.stringify(tip)
-                    : tip}
-                </p>
-              </div>
-            ))}
+            {geminiAnalysis.coaching_tips.map((tip, index) => {
+              const tipText = tip && typeof tip === 'object'
+                ? tip.tip || JSON.stringify(tip)
+                : tip;
+              
+              return (
+                <div key={index} className="coaching-tip">
+                  <span className="tip-number">{index + 1}</span>
+                  <div className="tip-text">
+                    <ReactMarkdown>{tipText}</ReactMarkdown>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </Card>
       ) : !hasApiError && (

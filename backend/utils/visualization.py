@@ -1,4 +1,5 @@
 import pandas as pd
+import statistics
 from typing import List, Dict, Tuple, Any, Optional
 
 class VisualizationHelper:
@@ -60,7 +61,7 @@ class VisualizationHelper:
             main_emotion_percentage = 0
         
         # Calculate emotional versatility
-        versatility_score = min(emotion_diversity / 5 * 100, 100)  # Normalize to 100%
+        versatility_score = min(emotion_diversity / 5 * 100, 100)
         
         # Create emotion transitions list
         transitions = []
@@ -91,14 +92,12 @@ class VisualizationHelper:
             DataFrame with WPS data
         """
         if not transcription_data:
-            # Return empty DataFrame with expected columns
             return pd.DataFrame(columns=["Time", "WPS", "Optimal Min", "Optimal Max", "Emotion"])
         
         # Extract data points
         data_points = []
         
         for segment in transcription_data:
-            # Use midpoint of segment for time
             time = (segment["start"] + segment["end"]) / 2
             wps = segment["wps"]
             emotion = segment["emotion"]
@@ -106,90 +105,12 @@ class VisualizationHelper:
             data_points.append({
                 "Time": time,
                 "WPS": wps,
-                "Optimal Min": 2.0,  # Optimal minimum WPS
-                "Optimal Max": 3.0,   # Optimal maximum WPS
-                "Emotion": emotion    # Include emotion for combined visualization
+                "Optimal Min": 2.0,
+                "Optimal Max": 3.0,
+                "Emotion": emotion
             })
         
         return pd.DataFrame(data_points)
-    
-    def prepare_combined_timeline_data(
-        self, 
-        emotion_df: pd.DataFrame, 
-        wps_data: pd.DataFrame
-    ) -> pd.DataFrame:
-        """
-        Prepare combined emotion and WPS data for timeline visualization.
-        
-        Args:
-            emotion_df: DataFrame with emotion data
-            wps_data: DataFrame with WPS data
-            
-        Returns:
-            DataFrame with combined data for visualization
-        """
-        # Create a combined dataset for timeline visualization
-        combined_data = []
-        
-        # Add emotion data points
-        for _, row in emotion_df.iterrows():
-            combined_data.append({
-                "Time": row["Mid Seconds"],
-                "Type": "Emotion",
-                "Value": row["Emotion"],
-                "Start": row["Start Seconds"],
-                "End": row["End Seconds"]
-            })
-        
-        # Add WPS data points
-        for _, row in wps_data.iterrows():
-            # Determine speed category
-            if row["WPS"] > 3.0:
-                speed_category = "Too Fast"
-            elif row["WPS"] < 1.0:
-                speed_category = "Too Slow"
-            else:
-                speed_category = "Optimal"
-                
-            combined_data.append({
-                "Time": row["Time"],
-                "Type": "WPS",
-                "Value": row["WPS"],
-                "Category": speed_category,
-                "Emotion": row["Emotion"]
-            })
-        
-        return pd.DataFrame(combined_data)
-    
-    def prepare_emotion_distribution_data(self, emotion_segments: List[Tuple[str, str]]) -> Dict[str, Any]:
-        """
-        Prepare data for emotion distribution pie chart.
-        
-        Args:
-            emotion_segments: List of (time_range, emotion) tuples
-            
-        Returns:
-            Dictionary with emotion distribution data
-        """
-        # Count emotions
-        emotion_counts = {}
-        for _, emotion in emotion_segments:
-            emotion_counts[emotion] = emotion_counts.get(emotion, 0) + 1
-        
-        # Calculate percentages
-        total = sum(emotion_counts.values())
-        emotion_percentages = {emotion: (count / total) * 100 for emotion, count in emotion_counts.items()}
-        
-        # Prepare data for pie chart
-        labels = list(emotion_counts.keys())
-        values = list(emotion_counts.values())
-        percentages = [emotion_percentages[emotion] for emotion in labels]
-        
-        return {
-            "labels": labels,
-            "values": values,
-            "percentages": percentages
-        }
     
     def prepare_speech_clarity_data(self, transcription_data: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
@@ -206,6 +127,8 @@ class VisualizationHelper:
                 "avg_words_per_segment": 0,
                 "avg_wps": 0,
                 "clarity_score": 0,
+                "total_words": 0,
+                "wps_variation": 0,
                 "issues": []
             }
         
@@ -216,6 +139,11 @@ class VisualizationHelper:
         wps_values = [segment["wps"] for segment in transcription_data]
         avg_wps = sum(wps_values) / len(wps_values) if wps_values else 0
         
+        # Calculate standard deviation for more meaningful variation metric
+        # Standard deviation is more statistically meaningful than range
+        # Typical standard deviation for natural speech is around 0.3-0.7 WPS
+        wps_variation = statistics.stdev(wps_values) if len(wps_values) > 1 else 0
+        
         # Simplified clarity score calculation
         clarity_score = min(100, max(0, (avg_words_per_segment / 20) * 100))
         
@@ -225,20 +153,22 @@ class VisualizationHelper:
             text = segment["text"]
             words = text.split()
             
-            # Check for very short segments (potentially unclear speech)
+            # Check for very short segments
             if len(words) < 3 and segment["end"] - segment["start"] > 2:
                 issues.append(f"Segment {i+1} has very few words for its duration")
             
-            # Check for segments with too many filler words (simplified)
+            # Check for filler words
             filler_words = ["um", "uh", "like", "you know", "sort of", "kind of"]
             filler_count = sum(text.lower().count(word) for word in filler_words)
-            if filler_count > len(words) * 0.2:  # If more than 20% are filler words
+            if filler_count > len(words) * 0.2:
                 issues.append(f"Segment {i+1} has many filler words")
         
         return {
             "avg_words_per_segment": round(avg_words_per_segment, 1),
             "avg_wps": round(avg_wps, 2),
+            "wps_variation": round(wps_variation, 2),
             "clarity_score": round(clarity_score, 1),
+            "total_words": total_words,
             "issues": issues
         }
     
@@ -274,25 +204,4 @@ class VisualizationHelper:
             "fearful": "#8a2be2",
             "excited": "#00ff7f",
             "unknown": "#ffffff"
-        }
-    
-    def get_emotion_icon_map(self) -> Dict[str, str]:
-        """
-        Get a mapping of emotions to text labels for visualization.
-        
-        Returns:
-            Dictionary mapping emotion names to text labels
-        """
-        return {
-            "angry": "ANGRY",
-            "calm": "CALM",
-            "sad": "SAD",
-            "surprised": "SURP",
-            "happy": "HAPPY",
-            "neutral": "NEUT",
-            "anxious": "ANX",
-            "disappointed": "DISAP",
-            "fearful": "FEAR",
-            "excited": "EXCIT",
-            "unknown": "UNK"
         }

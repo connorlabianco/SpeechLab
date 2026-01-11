@@ -1,4 +1,3 @@
-// src/components/layout/Header.js
 import React from 'react';
 import { Link } from 'react-router-dom';
 import '../../styles/components/layout/Header.css';
@@ -9,12 +8,12 @@ function Header() {
       <div className="header-container">
         <Link to="/" className="logo">
           <span className="logo-icon">🗣️</span>
-          <span className="logo-text">Speechably</span>
+          <span className="logo-text">SpeechLabs</span>
         </Link>
         <nav className="main-nav">
           <ul>
             <li><Link to="/">Home</Link></li>
-            <li><a href="https://github.com/connorlabianco/Speechably" target="_blank" rel="noopener noreferrer">GitHub</a></li>
+            <li><a href="https://github.com/yourusername/speechlabs" target="_blank" rel="noopener noreferrer">GitHub</a></li>
           </ul>
         </nav>
       </div>

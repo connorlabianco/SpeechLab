@@ -1,3 +1,3 @@
 """
-Backend package for Speechably Flask application.
-""" 
+Backend package for SpeechLabs Flask application.
+"""
