@@ -1,9 +1,12 @@
 from flask import Flask, jsonify
 from flask_cors import CORS
+from flask_login import LoginManager
+from authlib.integrations.flask_client import OAuth
 import os
 import sys
 from dotenv import load_dotenv
 from api.routes import api_bp
+from models import db, User
 
 # Load environment variables
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -37,13 +40,52 @@ def create_app():
     app = Flask(__name__, static_folder='../frontend/build', static_url_path='/')
     
     # Configure app
+    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', f'sqlite:///{os.path.join(BASE_DIR, "speech_analysis.db")}')
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['UPLOAD_FOLDER'] = os.path.join(BASE_DIR, 'uploads')
     app.config['TEMP_FOLDER'] = os.path.join(BASE_DIR, 'temp')
     app.config['MAX_CONTENT_LENGTH'] = 700 * 1024 * 1024  # Max 700MB uploads
     
+    # Google OAuth Configuration
+    app.config['GOOGLE_CLIENT_ID'] = os.environ.get('GOOGLE_CLIENT_ID', '')
+    app.config['GOOGLE_CLIENT_SECRET'] = os.environ.get('GOOGLE_CLIENT_SECRET', '')
+    
     # Ensure upload and temp directories exist
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
     os.makedirs(app.config['TEMP_FOLDER'], exist_ok=True)
+    
+    # Initialize database
+    db.init_app(app)
+    
+    # Initialize Flask-Login
+    login_manager = LoginManager()
+    login_manager.init_app(app)
+    login_manager.login_view = 'api.login'
+    
+    @login_manager.user_loader
+    def load_user(user_id):
+        return User.query.get(int(user_id))
+    
+    # Initialize OAuth
+    oauth = OAuth(app)
+    
+    # Configure Google OAuth
+    google = oauth.register(
+        name='google',
+        client_id=app.config['GOOGLE_CLIENT_ID'],
+        client_secret=app.config['GOOGLE_CLIENT_SECRET'],
+        server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
+        client_kwargs={'scope': 'openid email profile'}
+    )
+    
+    # Store OAuth instance in app config for access in routes
+    app.config['GOOGLE_OAUTH'] = google
+    
+    # Create database tables
+    with app.app_context():
+        db.create_all()
+        print("Database initialized", file=sys.stderr)
     
     # Enable CORS with specific configuration
     CORS(app, resources={r"/api/*": {"origins": "http://localhost:3000"}}, supports_credentials=True)

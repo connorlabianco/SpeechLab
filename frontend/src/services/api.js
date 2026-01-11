@@ -6,12 +6,60 @@
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
 /**
+ * Get current authenticated user
+ */
+export const getCurrentUser = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/user`, {
+      method: 'GET',
+      credentials: 'include'
+    });
+    
+    if (response.status === 401) {
+      return null;
+    }
+    
+    if (!response.ok) {
+      throw new Error('Failed to get user');
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error getting current user:', error);
+    return null;
+  }
+};
+
+/**
+ * Logout the current user
+ */
+export const logout = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/logout`, {
+      method: 'POST',
+      credentials: 'include'
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to logout');
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error logging out:', error);
+    throw error;
+  }
+};
+
+/**
  * Upload a video file for analysis
  */
 export const uploadVideo = async (formData) => {
   try {
     const response = await fetch(`${API_BASE_URL}/upload`, {
       method: 'POST',
+      credentials: 'include',
       body: formData
     });
     
@@ -34,6 +82,7 @@ export const sendChatMessage = async (data) => {
   try {
     const response = await fetch(`${API_BASE_URL}/chat`, {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json'
       },
@@ -61,6 +110,7 @@ export const generateAnalysisAudio = async (geminiAnalysis, section = 'all') => 
   try {
     const response = await fetch(`${API_BASE_URL}/generate-analysis-audio`, {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json'
       },

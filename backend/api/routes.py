@@ -1,4 +1,6 @@
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, redirect, url_for, send_file
+from flask_login import login_user, logout_user, login_required, current_user
+from datetime import datetime
 import os
 import uuid
 import tempfile
@@ -13,6 +15,8 @@ from services.deepgram_service import DeepgramService
 from services.gemini_service import GeminiService
 from utils.data_processor import DataProcessor
 from utils.visualization import VisualizationHelper
+from utils.pdf_generator import SpeechAnalysisPDF
+from models import db, User, Analysis
 
 # Create blueprint
 api_bp = Blueprint('api', __name__)
@@ -71,7 +75,91 @@ def allowed_file(filename):
     ALLOWED_EXTENSIONS = {'mp4', 'mov', 'avi', 'webm', 'mp3', 'wav'}
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+# OAuth Routes
+@api_bp.route('/login')
+def login():
+    """Initiate Google OAuth login"""
+    google = current_app.config.get('GOOGLE_OAUTH')
+    if not google:
+        return jsonify({'error': 'OAuth not configured'}), 500
+    
+    redirect_uri = url_for('api.authorize', _external=True)
+    # Debug: Print the redirect URI being used
+    print(f"OAuth redirect URI: {redirect_uri}", file=sys.stderr)
+    return google.authorize_redirect(redirect_uri)
+
+@api_bp.route('/authorize')
+def authorize():
+    """Handle OAuth callback"""
+    google = current_app.config.get('GOOGLE_OAUTH')
+    if not google:
+        return jsonify({'error': 'OAuth not configured'}), 500
+    
+    # Check for OAuth errors
+    error = request.args.get('error')
+    if error:
+        frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
+        return redirect(f'{frontend_url}/login?error={error}')
+    
+    try:
+        token = google.authorize_access_token()
+        if not token:
+            return jsonify({'error': 'Failed to get access token'}), 400
+        
+        user_info = token.get('userinfo')
+        
+        if user_info:
+            user = User.query.filter_by(google_id=user_info['sub']).first()
+            
+            if not user:
+                user = User(
+                    google_id=user_info['sub'],
+                    email=user_info.get('email'),
+                    name=user_info.get('name'),
+                    picture=user_info.get('picture')
+                )
+                db.session.add(user)
+            else:
+                # Update user info
+                user.email = user_info.get('email', user.email)
+                user.name = user_info.get('name', user.name)
+                user.picture = user_info.get('picture', user.picture)
+                user.last_login = datetime.utcnow()
+            
+            db.session.commit()
+            login_user(user)
+            
+            # Redirect to frontend with success indicator
+            frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
+            return redirect(f'{frontend_url}/login?success=true')
+        
+        return jsonify({'error': 'Failed to get user info'}), 400
+    
+    except Exception as e:
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        return jsonify({'error': f'Authentication failed: {str(e)}'}), 500
+
+@api_bp.route('/logout', methods=['POST'])
+@login_required
+def logout():
+    """Logout the current user"""
+    logout_user()
+    return jsonify({'success': True, 'message': 'Logged out successfully'}), 200
+
+@api_bp.route('/user', methods=['GET'])
+@login_required
+def get_current_user():
+    """Get current user information"""
+    return jsonify({
+        'id': current_user.id,
+        'email': current_user.email,
+        'name': current_user.name,
+        'picture': current_user.picture
+    }), 200
+
 @api_bp.route('/upload', methods=['POST'])
+@login_required
 def upload_video():
     """
     Handle video upload and processing
@@ -160,17 +248,48 @@ def upload_video():
                 wps_data = visualization_helper.prepare_wps_data(transcription_data)
                 speech_clarity = visualization_helper.prepare_speech_clarity_data(transcription_data)
             
+            # Prepare emotion segments for database (convert tuples to dicts)
+            emotion_segments_dict = [{'time_range': tr, 'emotion': e} for tr, e in emotion_segments]
+            
+            # Calculate metrics for database storage
+            dominant_emotion = emotion_metrics.get('main_emotion', 'neutral') if emotion_metrics else 'neutral'
+            avg_wps = speech_clarity.get('avg_wps', 0) if speech_clarity else 0
+            clarity_score = speech_clarity.get('clarity_score', 0) if speech_clarity else 0
+            total_words = speech_clarity.get('total_words', 0) if speech_clarity else 0
+            
+            # Save analysis to database
+            analysis = Analysis(
+                user_id=current_user.id,
+                filename=file.filename,
+                duration=total_duration,
+                emotion_segments=emotion_segments_dict,
+                transcription_data=transcription_data,
+                gemini_analysis=gemini_analysis,
+                dominant_emotion=dominant_emotion,
+                avg_wps=avg_wps,
+                clarity_score=clarity_score,
+                total_words=total_words,
+                emotion_metrics=emotion_metrics,
+                speech_clarity=speech_clarity if transcription_data else None,
+                wps_data=json.loads(wps_data.to_json(orient='records')) if wps_data is not None else None
+            )
+            
+            db.session.add(analysis)
+            db.session.commit()
+            
             # Create response data
             response_data = {
                 'success': True,
+                'analysis_id': analysis.id,
                 'video_id': unique_id,
-                'emotion_segments': [{'time_range': tr, 'emotion': e} for tr, e in emotion_segments],
+                'emotion_segments': emotion_segments_dict,
                 'transcription_data': transcription_data,
                 'gemini_analysis': gemini_analysis,
                 'emotion_metrics': emotion_metrics,
                 'speech_clarity': speech_clarity if transcription_data else None,
                 'wps_data': json.loads(wps_data.to_json(orient='records')) if wps_data is not None else None,
-                'duration': total_duration
+                'duration': total_duration,
+                'redirect_url': f'/analysis/{analysis.id}'
             }
             
             return jsonify(response_data), 200
@@ -186,6 +305,7 @@ def upload_video():
                 os.remove(upload_path)
 
 @api_bp.route('/chat', methods=['POST'])
+@login_required
 def chat_with_coach():
     """Handle chat requests to the AI coach"""
     try:
@@ -218,6 +338,7 @@ def chat_with_coach():
         return jsonify({'error': str(e)}), 500
 
 @api_bp.route('/generate-analysis-audio', methods=['POST'])
+@login_required
 def generate_analysis_audio():
     """Generate audio narration of Gemini analysis using Deepgram TTS
     
@@ -327,6 +448,91 @@ def generate_analysis_audio():
         import traceback
         traceback.print_exc(file=sys.stderr)
         return jsonify({'error': str(e)}), 500
+
+@api_bp.route('/dashboard', methods=['GET'])
+@login_required
+def dashboard():
+    """Get all analyses for the current user"""
+    analyses = Analysis.query.filter_by(user_id=current_user.id)\
+        .order_by(Analysis.created_at.desc()).all()
+    
+    analyses_data = []
+    for analysis in analyses:
+        analyses_data.append({
+            'id': analysis.id,
+            'filename': analysis.filename,
+            'duration': analysis.duration,
+            'dominant_emotion': analysis.dominant_emotion,
+            'avg_wps': analysis.avg_wps,
+            'clarity_score': analysis.clarity_score,
+            'total_words': analysis.total_words,
+            'created_at': analysis.created_at.isoformat() if analysis.created_at else None
+        })
+    
+    return jsonify({
+        'success': True,
+        'analyses': analyses_data,
+        'total': len(analyses_data)
+    }), 200
+
+@api_bp.route('/analysis/<int:analysis_id>', methods=['GET'])
+@login_required
+def get_analysis(analysis_id):
+    """Get a specific analysis by ID"""
+    analysis = Analysis.query.get_or_404(analysis_id)
+    
+    # Check if user owns this analysis
+    if analysis.user_id != current_user.id:
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    return jsonify({
+        'success': True,
+        'analysis': {
+            'id': analysis.id,
+            'filename': analysis.filename,
+            'duration': analysis.duration,
+            'emotion_segments': analysis.emotion_segments,
+            'transcription_data': analysis.transcription_data,
+            'gemini_analysis': analysis.gemini_analysis,
+            'dominant_emotion': analysis.dominant_emotion,
+            'avg_wps': analysis.avg_wps,
+            'clarity_score': analysis.clarity_score,
+            'total_words': analysis.total_words,
+            'emotion_metrics': analysis.emotion_metrics,
+            'speech_clarity': analysis.speech_clarity,
+            'wps_data': analysis.wps_data,
+            'created_at': analysis.created_at.isoformat() if analysis.created_at else None
+        }
+    }), 200
+
+@api_bp.route('/analysis/<int:analysis_id>/export-pdf', methods=['GET'])
+@login_required
+def export_pdf(analysis_id):
+    """Export analysis as PDF"""
+    analysis = Analysis.query.get_or_404(analysis_id)
+    
+    # Check if user owns this analysis
+    if analysis.user_id != current_user.id:
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    try:
+        pdf_generator = SpeechAnalysisPDF()
+        pdf_buffer = pdf_generator.generate_pdf(analysis, current_user)
+        
+        filename = f"speech_analysis_{analysis.id}_{analysis.filename or 'report'}.pdf"
+        # Clean filename for filesystem
+        filename = "".join(c for c in filename if c.isalnum() or c in (' ', '-', '_', '.')).rstrip()
+        
+        return send_file(
+            pdf_buffer,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=filename
+        )
+    except Exception as e:
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        return jsonify({'error': f'Failed to generate PDF: {str(e)}'}), 500
 
 @api_bp.route('/healthcheck', methods=['GET'])
 def healthcheck():
