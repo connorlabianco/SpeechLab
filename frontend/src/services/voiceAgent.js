@@ -11,10 +11,16 @@ export class VoiceAgentService {
     this.mediaStream = null;
     this.audioProcessor = null;
     this.isActive = false;
+    this.conversationHistory = [];
+    this.conversationStartTime = null;
   }
 
   async start(analysisData, onTranscript, onAgentSpeaking, onAgentText, onError, mode = 'coach') {
     try {
+      // Reset conversation tracking
+      this.conversationHistory = [];
+      this.conversationStartTime = Date.now();
+      
       // Create system prompt based on mode
       const systemPrompt = mode === 'practice' 
         ? this.buildPracticeConversationPrompt() 
@@ -48,6 +54,112 @@ export class VoiceAgentService {
           
           // Send system prompt to initialize agent
           try {
+            // Build agent configuration
+            const agentConfig = {
+              language: 'en',
+              listen: {
+                provider: {
+                  type: 'deepgram',
+                  model: 'nova-3'  // Using nova-3 as requested
+                }
+              },
+              think: (() => {
+                const thinkConfig = {
+                  provider: {
+                    type: 'open_ai',
+                    model: 'gpt-4o-mini'
+                  },
+                  prompt: systemPrompt
+                };
+                
+                // Functions go in think.functions, NOT agent.functions!
+                // Only add functions in practice mode
+                if (mode === 'practice') {
+                  thinkConfig.functions = [
+                  {
+                    name: 'analyze_conversation_practice',
+                    description: 'Analyze the practice conversation to generate insights about conversational skills, filler words, topic flow, and improvement areas. Call this when the user asks for feedback or signals the conversation should end.',
+                    parameters: {
+                      type: 'object',
+                      properties: {
+                        conversation_transcript: {
+                          type: 'array',
+                          description: 'Complete conversation history as array of message objects',
+                          items: {
+                            type: 'object',
+                            properties: {
+                              role: { 
+                                type: 'string',
+                                description: 'Message role: user or assistant'
+                              },
+                              content: { 
+                                type: 'string'
+                              }
+                            },
+                            required: ['role', 'content']
+                          }
+                        },
+                        duration_seconds: {
+                          type: 'integer',
+                          description: 'Duration of conversation in seconds'
+                        }
+                      },
+                      required: ['conversation_transcript']
+                    }
+                  },
+                  {
+                    name: 'save_conversation_to_history',
+                    description: 'Save the analyzed conversation to database for progress tracking. Call this after analyzing a conversation.',
+                    parameters: {
+                      type: 'object',
+                      properties: {
+                        analysis: {
+                          type: 'object',
+                          description: 'Analysis results object from analyze_conversation_practice function',
+                          additionalProperties: true
+                        },
+                        conversation_transcript: {
+                          type: 'array',
+                          description: 'Full conversation transcript as array of message objects',
+                          items: {
+                            type: 'object',
+                            properties: {
+                              role: { 
+                                type: 'string',
+                                description: 'Message role: user or assistant'
+                              },
+                              content: { 
+                                type: 'string'
+                              }
+                            },
+                            required: ['role', 'content']
+                          }
+                        },
+                        duration_seconds: {
+                          type: 'integer',
+                          description: 'Duration of conversation in seconds'
+                        }
+                      },
+                      required: ['analysis', 'conversation_transcript']
+                    }
+                  }
+                  ];
+                }
+                
+                return thinkConfig;
+              })(),
+              speak: {
+                provider: {
+                  type: 'deepgram',
+                  model: 'aura-2-thalia-en'
+                }
+              },
+              greeting: mode === 'practice' 
+                ? 'Hi! Let\'s practice conversation. When you\'re done, say "that\'s all" and I\'ll give you feedback.'
+                : 'Hello! I can see your speech analysis data. What would you like to know?'
+            };
+            
+            // Always use Settings type - functions are part of agent config
             this.connection.configure({
               type: 'Settings',
               audio: {
@@ -61,31 +173,7 @@ export class VoiceAgentService {
                   container: 'none'
                 }
               },
-              agent: {
-                language: 'en',
-                listen: {
-                  provider: {
-                    type: 'deepgram',
-                    model: 'nova-3'
-                  }
-                },
-                think: {
-                  provider: {
-                    type: 'open_ai',
-                    model: 'gpt-4o-mini'
-                  },
-                  prompt: systemPrompt
-                },
-                speak: {
-                  provider: {
-                    type: 'deepgram',
-                    model: 'aura-2-thalia-en'
-                  }
-                },
-                greeting: mode === 'practice' 
-                  ? 'Hi! Let\'s practice conversation. Say "that\'s all" when done for feedback.'
-                  : 'Hello! I can see your speech analysis data. What would you like to know?'
-              }
+              agent: agentConfig
             });
             console.log('Agent configured successfully');
             configurationComplete = true;
@@ -120,12 +208,16 @@ export class VoiceAgentService {
           
           if (content) {
             if (role === 'user' || !role) {
+              // Track conversation history
+              this.conversationHistory.push({ role: 'user', content });
               // Only log user messages in development
               if (process.env.NODE_ENV === 'development') {
                 console.log('User said:', content);
               }
               onTranscript(content);
             } else if (role === 'agent' || role === 'assistant') {
+              // Track conversation history
+              this.conversationHistory.push({ role: 'assistant', content });
               // Only log agent messages in development
               if (process.env.NODE_ENV === 'development') {
                 console.log('Agent said:', content);
@@ -195,6 +287,148 @@ export class VoiceAgentService {
         console.log('Voice agent disconnected');
         this.isActive = false;
       });
+
+      // Handle function call requests from agent (only in practice mode)
+      if (mode === 'practice') {
+        this.connection.on(AgentEvents.FunctionCallRequest, async (message) => {
+          try {
+            console.log('Function call request received:', message);
+            
+            // Deepgram sends functions as an array in message.functions
+            const functions = message.functions || (message.function_call ? [message.function_call] : []);
+            
+            if (!functions || functions.length === 0) {
+              console.error('Invalid function call request - no functions array:', message);
+              return;
+            }
+            
+            // Process each function call
+            for (const func of functions) {
+              const function_call_id = func.id || func.function_call_id || message.id;
+              const function_name = func.name || func.function_name;
+              const input = func.arguments || func.input || func.parameters;
+              
+              if (!function_call_id || !function_name) {
+                console.error('Invalid function call - missing id or name:', func);
+                continue;
+              }
+              
+              console.log(`Processing function: ${function_name}, id: ${function_call_id}`);
+              
+              let parameters;
+              try {
+                // Parse input if it's a string
+                parameters = typeof input === 'string' ? JSON.parse(input) : input;
+              } catch (e) {
+                console.error('Failed to parse function parameters:', e);
+                parameters = input || {};
+              }
+              
+              let result;
+              
+              if (function_name === 'analyze_conversation_practice') {
+                console.log('Analyzing conversation...');
+                
+                // Use conversation transcript from parameters if provided, otherwise use our tracked history
+                const transcript = parameters.conversation_transcript || this.conversationHistory;
+                // Calculate duration if not provided
+                const duration = parameters.duration_seconds || 
+                  (this.conversationStartTime ? Math.floor((Date.now() - this.conversationStartTime) / 1000) : 0);
+                
+                // Call backend to analyze
+                const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/analyze-conversation`, {
+                  method: 'POST',
+                  credentials: 'include',
+                  headers: {
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify({
+                    conversation_transcript: transcript,
+                    duration_seconds: duration
+                  })
+                });
+                
+                if (!response.ok) {
+                  throw new Error(`Analysis failed: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                result = JSON.stringify(data.analysis);  // Must be string
+                console.log('Analysis complete:', result);
+              }
+              else if (function_name === 'save_conversation_to_history') {
+                console.log('Saving to history...');
+                
+                // Use conversation transcript from parameters if provided, otherwise use our tracked history
+                const transcript = parameters.conversation_transcript || this.conversationHistory;
+                // Calculate duration if not provided
+                const duration = parameters.duration_seconds || 
+                  (this.conversationStartTime ? Math.floor((Date.now() - this.conversationStartTime) / 1000) : 0);
+                
+                // Call backend to save
+                const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/save-practice-history`, {
+                  method: 'POST',
+                  credentials: 'include',
+                  headers: {
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify({
+                    analysis: parameters.analysis,
+                    conversation_transcript: transcript,
+                    duration_seconds: duration
+                  })
+                });
+                
+                if (!response.ok) {
+                  throw new Error(`Save failed: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                result = JSON.stringify({
+                  success: true,
+                  session_id: data.session_id,
+                  message: data.message
+                });  // Must be string
+                console.log('Saved successfully:', result);
+              } else {
+                console.warn(`Unknown function: ${function_name}`);
+                result = JSON.stringify({ error: `Unknown function: ${function_name}` });
+              }
+              
+              // Send FunctionCallResponse back to agent
+              if (this.connection && typeof this.connection.send === 'function' && result) {
+                this.connection.send(JSON.stringify({
+                  type: 'FunctionCallResponse',
+                  function_call_id: function_call_id,
+                  output: result  // output field, not result!
+                }));
+                console.log(`Function response sent for ${function_name}`);
+              }
+            } // end for loop
+            
+          } catch (error) {
+            console.error('Function call handler error:', error);
+            
+            // Try to send error response if we have function info
+            const functions = message?.functions || [];
+            if (functions.length > 0 && this.connection && typeof this.connection.send === 'function') {
+              const func = functions[0];
+              const function_call_id = func?.id || message?.id;
+              if (function_call_id) {
+                try {
+                  this.connection.send(JSON.stringify({
+                    type: 'FunctionCallResponse',
+                    function_call_id: function_call_id,
+                    output: JSON.stringify({ error: error.message || 'Function execution failed' })
+                  }));
+                } catch (sendError) {
+                  console.error('Failed to send error response:', sendError);
+                }
+              }
+            }
+          }
+        });
+      }
 
       // Wait for connection to open before starting microphone
       await connectionOpened;
@@ -533,8 +767,14 @@ You are a conversational practice partner helping someone improve their conversa
   - Are they contributing equally or relying on you to carry the conversation?
 - When they indicate they want to end (by saying things like "that's all", "I'm done", "let's end", "finish", "stop", "end conversation", "wrap up", etc.), provide comprehensive, honest, critical feedback
 
+# Using Functions (CRITICAL)
+You have access to functions that help analyze and save conversations. You MUST use these functions:
+- When the user indicates they want to end (says "that's all", "I'm done", "let's end", etc.), IMMEDIATELY call the analyze_conversation_practice function to analyze the full conversation
+- After receiving the analysis results, call save_conversation_to_history to save the session for their progress tracking
+- These functions provide you with detailed insights about their performance that you can then share with them
+
 # When Conversation Ends
-When the user indicates they want to end the conversation, provide HONEST, THOROUGH, and CONSTRUCTIVE feedback. This is critical for their improvement.
+When the user indicates they want to end the conversation, FIRST call analyze_conversation_practice to get detailed analysis, THEN provide HONEST, THOROUGH, and CONSTRUCTIVE feedback based on that analysis. This is critical for their improvement.
 
 Your feedback MUST include:
 1. Honest Assessment: Be direct about how they actually performed. Don't sugarcoat or be overly optimistic. If they struggled, say so clearly.

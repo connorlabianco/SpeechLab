@@ -1,42 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getAnalyses, getPracticeSessions } from '../services/api';
+import { getAnalyses } from '../services/api';
 import '../styles/pages/History.css';
 
 function History() {
   const [analyses, setAnalyses] = useState([]);
-  const [practiceSessions, setPracticeSessions] = useState([]);
-  const [activeTab, setActiveTab] = useState('analyses'); // 'analyses' or 'practice'
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetchAllHistory();
+    fetchAnalyses();
   }, []);
 
-  const fetchAllHistory = async () => {
+  const fetchAnalyses = async () => {
     try {
       setIsLoading(true);
       setError(null);
-      
-      // Fetch both analyses and practice sessions in parallel
-      const [analysesResponse, practiceResponse] = await Promise.all([
-        getAnalyses().catch(err => {
-          console.error('Error fetching analyses:', err);
-          return { analyses: [] };
-        }),
-        getPracticeSessions().catch(err => {
-          console.error('Error fetching practice sessions:', err);
-          return { sessions: [] };
-        })
-      ]);
-      
-      setAnalyses(analysesResponse.analyses || []);
-      setPracticeSessions(practiceResponse.sessions || []);
+      const response = await getAnalyses();
+      setAnalyses(response.analyses || []);
     } catch (err) {
-      console.error('Error fetching history:', err);
-      setError('Failed to load your history. Please try again.');
+      console.error('Error fetching analyses:', err);
+      setError('Failed to load your analysis history. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -44,15 +29,6 @@ function History() {
 
   const handleViewAnalysis = (analysisId) => {
     navigate(`/analysis/${analysisId}`);
-  };
-
-  const handleViewPracticeSession = (sessionId) => {
-    // Navigate to practice session view (we'll create this later if needed)
-    // For now, just show an alert with session details
-    const session = practiceSessions.find(s => s.id === sessionId);
-    if (session) {
-      alert(`Practice Session #${sessionId}\n\nSummary: ${session.summary || 'N/A'}\nFlow Score: ${session.conversational_flow_score || 'N/A'}\nFiller Words: ${session.filler_word_count || 0}`);
-    }
   };
 
   const formatDate = (dateString) => {
@@ -86,7 +62,7 @@ function History() {
     return (
       <div className="history-page">
         <div className="error-message">{error}</div>
-        <button onClick={fetchAllHistory} className="btn-retry">Try Again</button>
+        <button onClick={fetchAnalyses} className="btn-retry">Try Again</button>
       </div>
     );
   }
@@ -103,27 +79,11 @@ function History() {
       <div className="grain"></div>
 
       <div className="history-header">
-        <h1>History</h1>
-        <p className="subtitle">View and manage your past speech analyses and practice sessions</p>
+        <h1>Analysis History</h1>
+        <p className="subtitle">View and manage your past speech analyses</p>
       </div>
 
-      {/* Tab Navigation */}
-      <div className="history-tabs">
-        <button
-          className={`tab-button ${activeTab === 'analyses' ? 'active' : ''}`}
-          onClick={() => setActiveTab('analyses')}
-        >
-          📊 Video Analyses ({analyses.length})
-        </button>
-        <button
-          className={`tab-button ${activeTab === 'practice' ? 'active' : ''}`}
-          onClick={() => setActiveTab('practice')}
-        >
-          💬 Practice Sessions ({practiceSessions.length})
-        </button>
-      </div>
-
-      {activeTab === 'analyses' && analyses.length === 0 ? (
+      {analyses.length === 0 ? (
         <div className="empty-state">
           <div className="empty-icon">📊</div>
           <h2>No analyses yet</h2>
@@ -176,71 +136,6 @@ function History() {
                 className="btn-view-analysis"
               >
                 View Full Analysis →
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {activeTab === 'practice' && practiceSessions.length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-icon">💬</div>
-          <h2>No practice sessions yet</h2>
-          <p>Start a practice conversation to see your progress here!</p>
-          <button 
-            onClick={() => navigate('/practice')} 
-            className="btn-primary"
-          >
-            Start Practice
-          </button>
-        </div>
-      ) : activeTab === 'practice' && (
-        <div className="analyses-grid">
-          {practiceSessions.map((session) => (
-            <div key={session.id} className="analysis-card practice-card">
-              <div className="card-header">
-                <h3 className="card-title">
-                  Practice Session #{session.id}
-                </h3>
-                <span className="card-date">{formatDate(session.created_at)}</span>
-              </div>
-              
-              <div className="card-metrics">
-                <div className="metric">
-                  <span className="metric-label">Duration</span>
-                  <span className="metric-value">{formatDuration(session.duration)}</span>
-                </div>
-                <div className="metric">
-                  <span className="metric-label">Flow Score</span>
-                  <span className="metric-value">
-                    {session.conversational_flow_score ? `${session.conversational_flow_score.toFixed(0)}/100` : 'N/A'}
-                  </span>
-                </div>
-                <div className="metric">
-                  <span className="metric-label">Filler Words</span>
-                  <span className="metric-value">
-                    {session.filler_word_count || 0}
-                  </span>
-                </div>
-                <div className="metric">
-                  <span className="metric-label">Engagement</span>
-                  <span className="metric-value emotion-badge">
-                    {session.engagement_level || 'N/A'}
-                  </span>
-                </div>
-              </div>
-
-              {session.summary && (
-                <div className="card-summary">
-                  <p>{session.summary.substring(0, 150)}{session.summary.length > 150 ? '...' : ''}</p>
-                </div>
-              )}
-
-              <button
-                onClick={() => handleViewPracticeSession(session.id)}
-                className="btn-view-analysis"
-              >
-                View Details →
               </button>
             </div>
           ))}

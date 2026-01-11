@@ -618,6 +618,7 @@ def analyze_conversation():
     try:
         data = request.json
         transcript = data.get('conversation_transcript', [])
+        duration = data.get('duration_seconds', 0)
         
         if not transcript or len(transcript) < 2:
             return jsonify({
@@ -662,6 +663,11 @@ def save_practice_history():
                 'success': False,
                 'error': 'No analysis data provided'
             }), 400
+        
+        # Parse analysis if it's a string
+        if isinstance(analysis, str):
+            import json
+            analysis = json.loads(analysis)
         
         # Create new practice session
         session = PracticeSession(
