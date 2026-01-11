@@ -459,7 +459,7 @@ The user's speech had these emotional patterns:
 The user is asking: "{user_input}"
 
 Provide helpful, specific coaching advice related to their question. Be encouraging but honest.
-Keep your response concise (3-5 sentences) unless detailed instructions are needed."""
+Keep your response concise (3-5 sentences) unless detailed instructions are needed. It is imperative that you do not use any markdown formatting, such as bolding, italics, or lists. The response must be in plain text."""
         
         try:
             # Get response from Gemini
