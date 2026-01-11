@@ -1,54 +1,83 @@
+/* Main card container */
 .improvement-timeline-card {
-  margin-bottom: 0;
+  width: 100%;
   height: 100%;
   display: flex;
   flex-direction: column;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
 }
 
 .improvement-timeline-card .card {
-  padding: 0.5rem;
-  margin-bottom: 0;
+  width: 100%;
   height: 100%;
   display: flex;
   flex-direction: column;
+  padding: 0;
+  margin: 0;
+  box-shadow: none;
+  background: transparent;
 }
 
 .improvement-timeline-card .card-content {
-  flex: 1;
+  width: 100%;
+  height: 100%;
   display: flex;
   flex-direction: column;
+  padding: 0;
+  margin: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Timeline content wrapper */
+.timeline-content {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
+  box-sizing: border-box;
+  overflow: hidden;
   min-height: 0;
 }
 
+/* Header section */
 .timeline-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.5rem;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  padding: 0;
   flex-shrink: 0;
+  gap: 1rem;
 }
 
-.timeline-header h3 {
+.timeline-title {
   margin: 0;
+  padding: 0;
   color: var(--text-color);
-  font-size: 1.5rem;
+  font-size: 1.2rem;
+  font-weight: 600;
+  line-height: 1.4;
 }
 
 .filter-controls {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  flex-shrink: 0;
 }
 
 .filter-controls label {
   font-size: 0.9rem;
   color: var(--text-light);
+  white-space: nowrap;
 }
 
 .filter-select {
-  padding: 0.5rem 1rem;
+  padding: 0.4rem 0.8rem;
   border: 1px solid var(--medium-gray);
   border-radius: var(--border-radius);
   background-color: white;
@@ -56,6 +85,7 @@
   font-size: 0.9rem;
   cursor: pointer;
   transition: border-color 0.2s;
+  min-width: 120px;
 }
 
 .filter-select:hover {
@@ -68,28 +98,52 @@
   box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
 }
 
-.chart-container {
-  margin: 0.5rem 0;
+/* Chart wrapper - ensures proper centering and no overlap */
+.chart-wrapper {
   flex: 1;
   min-height: 0;
-  max-height: calc(100% - 120px);
-  overflow: hidden;
-  box-sizing: border-box;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  padding: 0;
+  position: relative;
+  overflow: visible;
 }
 
+/* Force Recharts to center properly */
+.chart-wrapper .recharts-wrapper {
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0 auto !important;
+  display: block !important;
+}
+
+.chart-wrapper .recharts-surface {
+  overflow: visible;
+}
+
+/* No data message */
 .no-data-message {
   text-align: center;
   color: var(--text-light);
-  padding: 2rem;
+  padding: 2rem 1rem;
   font-style: italic;
+  margin: 0;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
+/* Tooltip styling */
 .improvement-tooltip {
-  background-color: rgba(255, 255, 255, 0.95);
+  background-color: rgba(255, 255, 255, 0.98);
   border: 1px solid var(--medium-gray);
   border-radius: var(--border-radius);
   padding: 0.75rem;
-  box-shadow: var(--shadow);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .tooltip-label {
@@ -105,57 +159,124 @@
   color: var(--primary-color);
 }
 
+/* Stats section */
 .timeline-stats {
   display: flex;
   justify-content: space-around;
-  padding: 1rem;
+  align-items: center;
+  padding: 0.5rem;
   background-color: var(--light-gray);
   border-radius: var(--border-radius);
-  margin-top: 1rem;
-  flex-wrap: wrap;
-  gap: 1rem;
+  margin-top: 0.75rem;
+  flex-shrink: 0;
+  gap: 0.5rem;
 }
 
 .stat-item {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 0.25rem;
+  flex: 1;
+  min-width: 0;
 }
 
 .stat-label {
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   color: var(--text-light);
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  text-align: center;
+  white-space: nowrap;
 }
 
 .stat-value {
   font-size: 1rem;
   font-weight: 600;
   color: var(--primary-color);
+  text-align: center;
 }
 
+/* Error message */
 .error-message {
   color: var(--danger-color);
   text-align: center;
-  padding: 1rem;
+  padding: 2rem 1rem;
+  margin: 0;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-@media (max-width: 768px) {
+/* Responsive design */
+@media (max-width: 1024px) {
+  .timeline-content {
+    padding: 1rem;
+  }
+  
   .timeline-header {
     flex-direction: column;
     align-items: flex-start;
+    gap: 0.75rem;
+  }
+  
+  .filter-controls {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  
+  .chart-wrapper {
+    min-height: 300px;
+  }
+}
+
+@media (max-width: 768px) {
+  .timeline-content {
+    padding: 0.75rem;
+  }
+  
+  .timeline-title {
+    font-size: 1.1rem;
   }
   
   .timeline-stats {
     flex-direction: column;
     gap: 0.75rem;
+    padding: 1rem 0.5rem;
   }
   
   .stat-item {
     flex-direction: row;
     justify-content: space-between;
     width: 100%;
+    padding: 0 0.5rem;
   }
+  
+  .stat-label {
+    font-size: 0.8rem;
+  }
+  
+  .stat-value {
+    font-size: 0.95rem;
+  }
+  
+  .chart-wrapper {
+    min-height: 250px;
+  }
+}
+
+/* Prevent any Recharts elements from overlapping */
+.recharts-cartesian-axis-tick {
+  overflow: visible;
+}
+
+.recharts-legend-wrapper {
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+.recharts-tooltip-wrapper {
+  pointer-events: none;
 }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, 
-  Legend, ResponsiveContainer, ReferenceLine
+  ResponsiveContainer, ReferenceLine
 } from 'recharts';
 import { getAnalyses } from '../services/api';
 import Card from './layout/Card';
@@ -73,7 +73,9 @@ function ImprovementTimeline({ onFilterChange }) {
   if (isLoading) {
     return (
       <Card className="improvement-timeline-card">
-        <Loading />
+        <div className="timeline-content">
+          <Loading />
+        </div>
       </Card>
     );
   }
@@ -81,7 +83,9 @@ function ImprovementTimeline({ onFilterChange }) {
   if (error) {
     return (
       <Card className="improvement-timeline-card">
-        <div className="error-message">{error}</div>
+        <div className="timeline-content">
+          <div className="error-message">{error}</div>
+        </div>
       </Card>
     );
   }
@@ -89,10 +93,12 @@ function ImprovementTimeline({ onFilterChange }) {
   if (analyses.length === 0) {
     return (
       <Card className="improvement-timeline-card">
-        <h3>Improvement Timeline</h3>
-        <p className="no-data-message">
-          No analysis data available yet. Upload your first video to start tracking your progress!
-        </p>
+        <div className="timeline-content">
+          <h3 className="timeline-title">Improvement Timeline</h3>
+          <p className="no-data-message">
+            No analysis data available yet. Upload your first video to start tracking your progress!
+          </p>
+        </div>
       </Card>
     );
   }
@@ -102,79 +108,101 @@ function ImprovementTimeline({ onFilterChange }) {
 
   return (
     <Card className="improvement-timeline-card">
-      <div className="timeline-header">
-        <h3>Improvement Timeline</h3>
-        <div className="filter-controls">
-          <label htmlFor="filter-count">Show last:</label>
-          <select 
-            id="filter-count"
-            value={filterCount} 
-            onChange={(e) => {
-              const newCount = Number(e.target.value);
-              setFilterCount(newCount);
-              if (onFilterChange) {
-                onFilterChange(newCount);
-              }
-            }}
-            className="filter-select"
-          >
-            <option value={5}>5 speeches</option>
-            <option value={10}>10 speeches</option>
-            <option value={15}>15 speeches</option>
-          </select>
+      <div className="timeline-content">
+        <div className="timeline-header">
+          <h3 className="timeline-title">Improvement Timeline</h3>
+          <div className="filter-controls">
+            <label htmlFor="filter-count">Show last:</label>
+            <select 
+              id="filter-count"
+              value={filterCount} 
+              onChange={(e) => {
+                const newCount = Number(e.target.value);
+                setFilterCount(newCount);
+                if (onFilterChange) {
+                  onFilterChange(newCount);
+                }
+              }}
+              className="filter-select"
+            >
+              <option value={5}>5 speeches</option>
+              <option value={10}>10 speeches</option>
+              <option value={15}>15 speeches</option>
+            </select>
+          </div>
         </div>
-      </div>
-      
-      <div className="chart-container">
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-            <XAxis 
-              dataKey="date"
-              tick={{ fontSize: 12 }}
-              angle={-45}
-              textAnchor="end"
-              height={80}
-            />
-            <YAxis 
-              domain={[0, 100]}
-              label={{ value: 'Clarity Score (%)', angle: -90, position: 'insideLeft' }}
-              tick={{ fontSize: 12 }}
-            />
-            <Tooltip content={<CustomTooltip />} />
-            <Legend />
-            <ReferenceLine 
-              y={avgClarity} 
-              stroke="#8884d8" 
-              strokeDasharray="3 3" 
-              label={{ value: `Avg: ${avgClarity.toFixed(0)}%`, position: 'right' }}
-            />
-            <Line
-              type="monotone"
-              dataKey="clarityScore"
-              stroke="#4CAF50"
-              strokeWidth={2}
-              name="Clarity Score"
-              dot={{ fill: '#4CAF50', r: 5 }}
-              activeDot={{ r: 7 }}
-              isAnimationActive={true}
-            />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
-      
-      <div className="timeline-stats">
-        <div className="stat-item">
-          <span className="stat-label">Current:</span>
-          <span className="stat-value">{analyses[analyses.length - 1]?.clarity_score.toFixed(0) || 'N/A'}%</span>
+        
+        <div className="chart-wrapper">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart 
+              data={chartData} 
+              margin={{ 
+                top: 10, 
+                right: 20, 
+                left: 0, 
+                bottom: 60 
+              }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+              <XAxis 
+                dataKey="date"
+                tick={{ fontSize: 11, fill: '#666' }}
+                angle={-45}
+                textAnchor="end"
+                height={80}
+                interval={0}
+                dy={10}
+              />
+              <YAxis 
+                domain={[0, 100]}
+                tick={{ fontSize: 11, fill: '#666' }}
+                width={50}
+                label={{ 
+                  value: 'Clarity (%)', 
+                  angle: -90, 
+                  position: 'insideLeft',
+                  style: { textAnchor: 'middle', fontSize: '11px', fill: '#666' },
+                  offset: 5
+                }}
+              />
+              <Tooltip content={<CustomTooltip />} />
+              <ReferenceLine 
+                y={avgClarity} 
+                stroke="#8884d8" 
+                strokeDasharray="3 3" 
+                label={{ 
+                  value: `Avg: ${avgClarity.toFixed(0)}%`, 
+                  position: 'right',
+                  style: { fontSize: '11px', fill: '#8884d8' }
+                }}
+              />
+              <Line
+                type="monotone"
+                dataKey="clarityScore"
+                stroke="#4CAF50"
+                strokeWidth={2}
+                name="Clarity Score"
+                dot={{ fill: '#4CAF50', r: 4 }}
+                activeDot={{ r: 6 }}
+                isAnimationActive={true}
+              />
+            </LineChart>
+          </ResponsiveContainer>
         </div>
-        <div className="stat-item">
-          <span className="stat-label">Average:</span>
-          <span className="stat-value">{avgClarity.toFixed(0)}%</span>
-        </div>
-        <div className="stat-item">
-          <span className="stat-label">Best:</span>
-          <span className="stat-value">{Math.max(...analyses.map(a => a.clarity_score || 0)).toFixed(0)}%</span>
+        
+        <div className="timeline-stats">
+          <div className="stat-item">
+            <span className="stat-label">Current</span>
+            <span className="stat-value">{analyses[analyses.length - 1]?.clarity_score.toFixed(0) || 'N/A'}%</span>
+          </div>
+          <div className="stat-item">
+            <span className="stat-label">Average</span>
+            <span className="stat-value">{avgClarity.toFixed(0)}%</span>
+          </div>
+          <div className="stat-item">
+            <span className="stat-label">Best</span>
+            <span className="stat-value">{Math.max(...analyses.map(a => a.clarity_score || 0)).toFixed(0)}%</span>
+          </div>
         </div>
       </div>
     </Card>

@@ -161,12 +161,13 @@ html.dashboard-page-active {
 .dashboard-card {
   background-color: rgba(255, 255, 255, 0.95);
   border-radius: var(--border-radius);
-  padding: 1.5rem;
+  padding: 1rem;
   box-shadow: var(--card-shadow);
   display: flex;
   flex-direction: column;
   overflow: hidden;
   min-height: 0;
+  box-sizing: border-box;
 }
 
 .timeline-card {
