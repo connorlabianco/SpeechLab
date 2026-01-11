@@ -17,6 +17,7 @@ function CoachChat({ emotionSegments, analysisData }) {
   const [audioResponseEnabled, setAudioResponseEnabled] = useState(false);
   
   const chatEndRef = useRef(null);
+  const chatMessagesRef = useRef(null);
   const audioRef = useRef(null);
   const voiceAgentRef = useRef(null);
   const audioContextRef = useRef(null);
@@ -25,8 +26,12 @@ function CoachChat({ emotionSegments, analysisData }) {
   const nextPlayTimeRef = useRef(0);
   const currentAudioRef = useRef(null);
   
+  // Auto-scroll chat messages container (not the entire page)
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (chatMessagesRef.current && chatEndRef.current) {
+      // Only scroll the chat messages container, not the page
+      chatMessagesRef.current.scrollTop = chatMessagesRef.current.scrollHeight;
+    }
   }, [chatHistory]);
 
   // Cleanup on unmount
@@ -313,7 +318,7 @@ function CoachChat({ emotionSegments, analysisData }) {
   return (
     <Card className="coach-chat-card">
       <div className="chat-container">
-        <div className="chat-messages">
+        <div className="chat-messages" ref={chatMessagesRef}>
           {chatHistory.map((msg, index) => (
             <div 
               key={index} 
