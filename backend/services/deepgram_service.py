@@ -3,8 +3,9 @@ import sys
 import base64
 import tempfile
 import uuid
+import statistics
 from typing import List, Dict, Tuple, Any, Optional
-from deepgram import DeepgramClient, PrerecordedOptions, SpeakOptions, DeepgramError
+from deepgram import DeepgramClient
 
 class DeepgramService:
     """
@@ -83,8 +84,9 @@ class DeepgramService:
                 with open(segment_path, 'rb') as audio_file:
                     buffer_data = audio_file.read()
                 
-                # Configure Deepgram options with Smart Formatting
-                options = PrerecordedOptions(
+                # Transcribe with Deepgram using new API (options as keyword arguments)
+                response = self.client.listen.v1.media.transcribe_file(
+                    request=buffer_data,
                     model="nova-2",
                     language="en",
                     smart_format=True,  # Enable Smart Formatting
@@ -92,13 +94,6 @@ class DeepgramService:
                     paragraphs=False,
                     utterances=False,
                     diarize=False
-                )
-                
-                # Transcribe with Deepgram
-                payload = {"buffer": buffer_data}
-                response = self.client.listen.prerecorded.v("1").transcribe_file(
-                    payload,
-                    options
                 )
                 
                 # Extract transcript from response
@@ -127,13 +122,12 @@ class DeepgramService:
                 transcripts.append(segment_data)
                 print(f"Transcribed segment {i+1}: {segment_data['text'][:50]}...")
                 
-            except DeepgramError as e:
-                print(f"Deepgram API error transcribing segment {i+1}: {str(e)}", file=sys.stderr)
-                continue
             except Exception as e:
-                print(f"Error transcribing segment {i+1}: {str(e)}", file=sys.stderr)
-                import traceback
-                traceback.print_exc(file=sys.stderr)
+                error_type = type(e).__name__
+                if 'Error' in error_type or 'deepgram' in str(type(e)).lower():
+                    print(f"Deepgram API error transcribing segment {i+1}: {str(e)}", file=sys.stderr)
+                else:
+                    print(f"Error transcribing segment {i+1}: {str(e)}", file=sys.stderr)
                 continue
         
         return transcripts
@@ -157,8 +151,9 @@ class DeepgramService:
             with open(audio_path, 'rb') as audio_file:
                 buffer_data = audio_file.read()
             
-            # Configure Deepgram options
-            options = PrerecordedOptions(
+            # Transcribe with Deepgram using new API (options as keyword arguments)
+            response = self.client.listen.v1.media.transcribe_file(
+                request=buffer_data,
                 model="nova-2",
                 language="en",
                 smart_format=True,
@@ -166,13 +161,6 @@ class DeepgramService:
                 paragraphs=True,
                 utterances=True,
                 diarize=False
-            )
-            
-            # Transcribe with Deepgram
-            payload = {"buffer": buffer_data}
-            response = self.client.listen.prerecorded.v("1").transcribe_file(
-                payload,
-                options
             )
             
             # Extract data from response
@@ -225,11 +213,12 @@ class DeepgramService:
             
             return result
             
-        except DeepgramError as e:
-            print(f"Deepgram API error: {str(e)}", file=sys.stderr)
-            return {}
         except Exception as e:
-            print(f"Error transcribing audio: {str(e)}", file=sys.stderr)
+            error_type = type(e).__name__
+            if 'Error' in error_type or 'deepgram' in str(type(e)).lower():
+                print(f"Deepgram API error: {str(e)}", file=sys.stderr)
+            else:
+                print(f"Error transcribing audio: {str(e)}", file=sys.stderr)
             import traceback
             traceback.print_exc(file=sys.stderr)
             return {}
@@ -247,8 +236,7 @@ class DeepgramService:
             
         Raises:
             ValueError: If text is empty or client is not initialized
-            DeepgramError: If Deepgram API call fails
-            Exception: For other errors during audio generation
+            Exception: If Deepgram API call fails or other errors during audio generation
         """
         if not self.client:
             error_msg = "Deepgram client not initialized. Cannot generate speech."
@@ -267,21 +255,17 @@ class DeepgramService:
             output_path = temp_file
         
         try:
-            # Configure TTS options
-            options = SpeakOptions(
+            # Generate speech using new API (options as keyword arguments)
+            response = self.client.speak.v1.audio.generate(
+                text=text,
                 model="aura-asteria-en",  # Natural-sounding voice
                 encoding="linear16",
                 sample_rate=24000
             )
             
-            # Generate speech - correct API signature: save(file_path, payload, options)
-            # Payload should be a dict with "text" key
-            payload = {"text": text}
-            response = self.client.speak.v("1").save(
-                output_path,
-                payload,
-                options
-            )
+            # Write the audio stream to file
+            with open(output_path, 'wb') as audio_file:
+                audio_file.write(response.stream.getvalue())
             
             # Verify the file was created
             if not os.path.exists(output_path):
@@ -313,18 +297,12 @@ class DeepgramService:
             else:
                 return output_path
                 
-        except DeepgramError as e:
-            error_msg = f"Deepgram TTS API error: {str(e)}"
-            print(error_msg, file=sys.stderr)
-            # Clean up temp file on error
-            if temp_file and os.path.exists(temp_file):
-                try:
-                    os.remove(temp_file)
-                except:
-                    pass
-            raise Exception(error_msg) from e
         except Exception as e:
-            error_msg = f"Error generating speech: {str(e)}"
+            error_type = type(e).__name__
+            if 'Error' in error_type or 'deepgram' in str(type(e)).lower():
+                error_msg = f"Deepgram TTS API error: {str(e)}"
+            else:
+                error_msg = f"Error generating speech: {str(e)}"
             print(error_msg, file=sys.stderr)
             import traceback
             traceback.print_exc(file=sys.stderr)
