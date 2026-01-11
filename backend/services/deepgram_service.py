@@ -256,16 +256,18 @@ class DeepgramService:
         
         try:
             # Generate speech using new API (options as keyword arguments)
-            response = self.client.speak.v1.audio.generate(
+            # The generate method returns a generator that yields audio chunks
+            audio_generator = self.client.speak.v1.audio.generate(
                 text=text,
                 model="aura-asteria-en",  # Natural-sounding voice
                 encoding="linear16",
                 sample_rate=24000
             )
             
-            # Write the audio stream to file
+            # Collect all audio chunks from the generator and write to file
             with open(output_path, 'wb') as audio_file:
-                audio_file.write(response.stream.getvalue())
+                for audio_chunk in audio_generator:
+                    audio_file.write(audio_chunk)
             
             # Verify the file was created
             if not os.path.exists(output_path):
