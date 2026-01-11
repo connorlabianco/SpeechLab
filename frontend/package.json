@@ -13,8 +13,11 @@
         "recharts": "^2.5.0",
         "web-vitals": "^2.1.4"
     },
+    "devDependencies": {
+        "cross-env": "^7.0.3"
+    },
     "scripts": {
-        "start": "react-scripts start",
+        "start": "cross-env WDS_SOCKET_HOST=localhost HOST=localhost DANGEROUSLY_DISABLE_HOST_CHECK=true NODE_OPTIONS=--no-deprecation react-scripts start",
         "build": "react-scripts build",
         "test": "react-scripts test",
         "eject": "react-scripts eject"
