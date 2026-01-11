@@ -15,6 +15,7 @@ function PracticeConversation() {
   const audioContextRef = useRef(null);
   const nextPlayTimeRef = useRef(0);
   const conversationHistoryRef = useRef([]);
+  const conversationStartTimeRef = useRef(null);
   const waitingForFeedbackRef = useRef(false);
   const activeAudioSourcesRef = useRef([]);
   const isAgentSpeakingRef = useRef(false);
@@ -73,6 +74,7 @@ function PracticeConversation() {
       setVoiceStatus('Connecting...');
       setConversationEnded(false);
       conversationHistoryRef.current = [];
+      conversationStartTimeRef.current = Date.now();
       
       // Create audio context for playback
       audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)({

@@ -508,3 +508,107 @@ Remember: Be conversational, specific, and encouraging. Reference their actual p
         except Exception as e:
             print(f"Error generating chat response: {str(e)}", file=sys.stderr)
             return "I'm having trouble generating a personalized response right now. Here's some general advice: focus on maintaining a consistent pace, practice in front of a mirror to work on your delivery, and record yourself to identify specific areas for improvement."
+    
+    def analyze_conversation(self, transcript: list) -> dict:
+        """
+        Analyze a practice conversation for conversational skills.
+        
+        Args:
+            transcript: List of dicts with 'role' and 'content' keys
+            
+        Returns:
+            Dictionary with analysis results
+        """
+        if not self.model:
+            print("Gemini model not initialized")
+            return self._get_fallback_conversation_analysis()
+        
+        try:
+            # Build conversation string
+            conversation_text = "\n".join([
+                f"{msg['role'].upper()}: {msg['content']}" 
+                for msg in transcript
+            ])
+            
+            # Count filler words
+            user_text = " ".join([
+                msg['content'] for msg in transcript 
+                if msg['role'] == 'user'
+            ]).lower()
+            
+            filler_words = {
+                'um': user_text.count(' um ') + user_text.count('um,'),
+                'uh': user_text.count(' uh ') + user_text.count('uh,'),
+                'like': user_text.count(' like '),
+                'you know': user_text.count('you know'),
+                'sort of': user_text.count('sort of'),
+                'kind of': user_text.count('kind of')
+            }
+            total_fillers = sum(filler_words.values())
+            
+            # Calculate avg response length
+            user_responses = [msg['content'] for msg in transcript if msg['role'] == 'user']
+            avg_length = sum(len(r.split()) for r in user_responses) / len(user_responses) if user_responses else 0
+            
+            prompt = f"""Analyze this practice conversation for conversational skills:
+
+{conversation_text}
+
+Provide analysis in JSON format with these exact keys:
+{{
+  "summary": "2-3 sentence summary of conversation quality",
+  "key_strengths": ["strength 1", "strength 2", "strength 3"],
+  "improvement_areas": ["area 1", "area 2", "area 3"],
+  "conversational_flow_score": <number 0-100>,
+  "topic_coherence": "<high/medium/low>",
+  "engagement_level": "<high/medium/low>"
+}}
+
+Focus on: topic development, clarity of expression, listening skills, engagement, natural flow.
+Be encouraging but honest. Provide actionable improvement areas."""
+
+            response = self.model.generate_content(prompt)
+            response_text = response.text.strip()
+            
+            # Extract JSON from markdown code blocks if present
+            if '```json' in response_text:
+                response_text = response_text.split('```json')[1].split('```')[0].strip()
+            elif '```' in response_text:
+                response_text = response_text.split('```')[1].split('```')[0].strip()
+            
+            analysis = json.loads(response_text)
+            
+            # Add filler word data
+            analysis['filler_word_count'] = total_fillers
+            analysis['filler_words_breakdown'] = filler_words
+            analysis['avg_response_length_words'] = int(avg_length)
+            
+            return analysis
+            
+        except Exception as e:
+            print(f"Error analyzing conversation: {str(e)}", file=sys.stderr)
+            import traceback
+            traceback.print_exc(file=sys.stderr)
+            return self._get_fallback_conversation_analysis()
+
+    def _get_fallback_conversation_analysis(self) -> dict:
+        """Fallback analysis if Gemini fails"""
+        return {
+            'summary': 'Conversation analysis completed. Practice session recorded.',
+            'filler_word_count': 0,
+            'filler_words_breakdown': {},
+            'key_strengths': [
+                'Engaged in conversation',
+                'Completed practice session',
+                'Willing to improve'
+            ],
+            'improvement_areas': [
+                'Continue practicing regularly',
+                'Focus on clear articulation',
+                'Reduce hesitation words'
+            ],
+            'conversational_flow_score': 65,
+            'topic_coherence': 'medium',
+            'engagement_level': 'medium',
+            'avg_response_length_words': 0
+        }

@@ -16,7 +16,7 @@ from services.gemini_service import GeminiService
 from utils.data_processor import DataProcessor
 from utils.visualization import VisualizationHelper
 from utils.pdf_generator import SpeechAnalysisPDF
-from models import db, User, Analysis
+from models import db, User, Analysis, PracticeSession
 
 # Create blueprint
 api_bp = Blueprint('api', __name__)
@@ -607,6 +607,122 @@ def get_deepgram_key():
     if not DEEPGRAM_API_KEY:
         return jsonify({'error': 'Deepgram API key not configured'}), 500
     return jsonify({'api_key': DEEPGRAM_API_KEY}), 200
+
+@api_bp.route('/analyze-conversation', methods=['POST'])
+@login_required
+def analyze_conversation():
+    """
+    Analyze a practice conversation using Gemini AI.
+    Called by voice agent function: analyze_conversation_practice
+    """
+    try:
+        data = request.json
+        transcript = data.get('conversation_transcript', [])
+        
+        if not transcript or len(transcript) < 2:
+            return jsonify({
+                'success': False,
+                'error': 'Conversation too short to analyze'
+            }), 400
+        
+        # Analyze using Gemini service
+        gemini_service = GeminiService()
+        analysis = gemini_service.analyze_conversation(transcript)
+        
+        return jsonify({
+            'success': True,
+            'analysis': analysis
+        }), 200
+        
+    except Exception as e:
+        print(f"Error in analyze_conversation: {str(e)}", file=sys.stderr)
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        return jsonify({
+            'success': False,
+            'error': 'Failed to analyze conversation'
+        }), 500
+
+
+@api_bp.route('/save-practice-history', methods=['POST'])
+@login_required
+def save_practice_history():
+    """
+    Save analyzed practice conversation to user's history.
+    Called by voice agent function: save_conversation_to_history
+    """
+    try:
+        data = request.json
+        analysis = data.get('analysis', {})
+        transcript = data.get('conversation_transcript', [])
+        duration = data.get('duration_seconds', 0)
+        
+        if not analysis:
+            return jsonify({
+                'success': False,
+                'error': 'No analysis data provided'
+            }), 400
+        
+        # Create new practice session
+        session = PracticeSession(
+            user_id=current_user.id,
+            duration=float(duration),
+            transcript=transcript,
+            summary=analysis.get('summary', ''),
+            filler_word_count=analysis.get('filler_word_count', 0),
+            filler_words_breakdown=analysis.get('filler_words_breakdown', {}),
+            key_strengths=analysis.get('key_strengths', []),
+            improvement_areas=analysis.get('improvement_areas', []),
+            conversational_flow_score=analysis.get('conversational_flow_score', 0),
+            topic_coherence=analysis.get('topic_coherence', 'medium'),
+            engagement_level=analysis.get('engagement_level', 'medium'),
+            avg_response_length_words=analysis.get('avg_response_length_words', 0)
+        )
+        
+        db.session.add(session)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'session_id': session.id,
+            'message': 'Practice session saved to your history!',
+            'created_at': session.created_at.isoformat() if session.created_at else None
+        }), 200
+        
+    except Exception as e:
+        print(f"Error in save_practice_history: {str(e)}", file=sys.stderr)
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'error': 'Failed to save practice session'
+        }), 500
+
+
+@api_bp.route('/practice-history', methods=['GET'])
+@login_required
+def get_practice_history():
+    """
+    Get all practice sessions for current user.
+    Used to display practice history in frontend.
+    """
+    try:
+        sessions = PracticeSession.query.filter_by(user_id=current_user.id)\
+            .order_by(PracticeSession.created_at.desc()).all()
+        
+        return jsonify({
+            'success': True,
+            'sessions': [session.to_dict() for session in sessions],
+            'total': len(sessions)
+        }), 200
+        
+    except Exception as e:
+        print(f"Error in get_practice_history: {str(e)}", file=sys.stderr)
+        return jsonify({
+            'success': False,
+            'error': 'Failed to retrieve practice history'
+        }), 500
 
 @api_bp.route('/healthcheck', methods=['GET'])
 def healthcheck():

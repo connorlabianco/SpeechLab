@@ -6,7 +6,7 @@ import os
 import sys
 from dotenv import load_dotenv
 from api.routes import api_bp
-from models import db, User
+from models import db, User, PracticeSession
 
 # Load environment variables
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))

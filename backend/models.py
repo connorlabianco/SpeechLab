@@ -48,3 +48,53 @@ class Analysis(db.Model):
     
     def __repr__(self):
         return f'<Analysis {self.id} - {self.filename}>'
+
+class PracticeSession(db.Model):
+    """Practice conversation session with AI analysis"""
+    __tablename__ = 'practice_session'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    # Session metadata
+    duration = db.Column(db.Float)  # seconds
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Conversation data
+    transcript = db.Column(db.JSON)  # Full conversation array
+    
+    # Analysis results
+    summary = db.Column(db.Text)
+    filler_word_count = db.Column(db.Integer)
+    filler_words_breakdown = db.Column(db.JSON)
+    key_strengths = db.Column(db.JSON)  # Array of strings
+    improvement_areas = db.Column(db.JSON)  # Array of strings
+    
+    # Metrics
+    conversational_flow_score = db.Column(db.Float)  # 0-100
+    topic_coherence = db.Column(db.String(50))  # high/medium/low
+    engagement_level = db.Column(db.String(50))  # high/medium/low
+    avg_response_length_words = db.Column(db.Integer)
+    
+    # Relationship
+    user = db.relationship('User', backref=db.backref('practice_sessions', lazy=True))
+    
+    def __repr__(self):
+        return f'<PracticeSession {self.id} - User {self.user_id}>'
+    
+    def to_dict(self):
+        """Convert to dictionary for API responses"""
+        return {
+            'id': self.id,
+            'duration': self.duration,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'summary': self.summary,
+            'filler_word_count': self.filler_word_count,
+            'filler_words_breakdown': self.filler_words_breakdown,
+            'key_strengths': self.key_strengths,
+            'improvement_areas': self.improvement_areas,
+            'conversational_flow_score': self.conversational_flow_score,
+            'topic_coherence': self.topic_coherence,
+            'engagement_level': self.engagement_level,
+            'avg_response_length_words': self.avg_response_length_words
+        }

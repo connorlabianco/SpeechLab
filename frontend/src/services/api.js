@@ -178,6 +178,28 @@ export const getAnalysisById = async (analysisId) => {
 };
 
 /**
+ * Get all practice sessions for the current user
+ */
+export const getPracticeSessions = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/practice-history`, {
+      method: 'GET',
+      credentials: 'include'
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to fetch practice sessions');
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching practice sessions:', error);
+    throw error;
+  }
+};
+
+/**
  * Check API server health
  */
 export const checkApiHealth = async () => {
