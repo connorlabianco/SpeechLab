@@ -26,7 +26,7 @@ function FeatureList() {
     },
     {
       title: 'Audio Feedback',
-      description: 'Listen to coaching advice with AI-generated voice feedback. Generate audio for each section: summary, strengths, improvements, and tips.'
+      description: 'Listen to coaching advice with AI-generated voice feedback.'
     },
     {
       title: 'Interactive Visualizations',

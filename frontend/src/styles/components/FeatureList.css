@@ -22,7 +22,7 @@
 }
 
 .feature-title {
-  font-size: 1.1rem;
+  font-size: 0.95rem;
   margin-bottom: 0.5rem;
   color: var(--primary-color);
   flex-shrink: 0;
@@ -30,7 +30,7 @@
 
 .feature-description {
   color: var(--text-light);
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   line-height: 1.4;
   margin: 0;
   flex: 1;

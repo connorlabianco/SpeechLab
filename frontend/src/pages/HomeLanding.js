@@ -69,8 +69,6 @@ function HomeLanding() {
             {!showFeatures && (
               <button className="scroll-indicator scroll-down" onClick={handleScrollDown}>
                 <span className="arrow">▼</span>
-                <span className="arrow">▼</span>
-                <span className="arrow">▼</span>
               </button>
             )}
           </div>
@@ -80,8 +78,6 @@ function HomeLanding() {
         <section className="features-section">
           {showFeatures && (
             <button className="scroll-indicator scroll-up" onClick={handleScrollUp}>
-              <span className="arrow">▲</span>
-              <span className="arrow">▲</span>
               <span className="arrow">▲</span>
             </button>
           )}

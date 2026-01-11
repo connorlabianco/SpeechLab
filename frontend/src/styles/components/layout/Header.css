@@ -25,8 +25,13 @@
   }
   
   .logo-icon {
-    font-size: 1.5rem;
+    height: 2.25rem;
+    width: auto;
     margin-right: 0.5rem;
+    object-fit: contain;
+    display: inline-block;
+    flex-shrink: 0;
+    vertical-align: middle;
   }
   
   .logo-text {

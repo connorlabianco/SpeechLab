@@ -20,7 +20,7 @@ function Header() {
     <header className="header">
       <div className="header-container">
         <Link to="/" className="logo">
-          <span className="logo-icon">🗣️</span>
+          <img src="/logo-cat.png" alt="SpeechLabs Logo" className="logo-icon" />
           <span className="logo-text">SpeechLabs</span>
         </Link>
         <nav className="main-nav">

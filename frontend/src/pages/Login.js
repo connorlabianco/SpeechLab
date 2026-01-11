@@ -76,7 +76,7 @@ function Login() {
       <div className="login-container">
         <div className="login-card">
           <div className="login-header">
-            <span className="logo-icon">🗣️</span>
+            <img src="/logo-cat.png" alt="SpeechLabs Logo" className="logo-icon" />
             <h1>SpeechLabs</h1>
             <p className="login-subtitle">Sign in to get started</p>
           </div>
